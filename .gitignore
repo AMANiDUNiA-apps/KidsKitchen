@@ -26,3 +26,9 @@ Secrets.plist
 # Session-Tooling (nicht Projekt-Code)
 .mcp.json
 .claude/
+
+# Interne Notizen & Pipelines – NICHT öffentlich (Server-IP, Infra, interne Roadmap)
+CLAUDE.md
+WEITERBAU-NOTES.md
+pipelines/
+appstore/PRIVACY-ANGABEN-APP-STORE-CONNECT.md
