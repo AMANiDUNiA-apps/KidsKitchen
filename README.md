@@ -52,6 +52,25 @@ seither weitergebaut.
 SwiftUI · Swift Concurrency (`async/await`) · SwiftData · MVVM + Repository ·
 Supabase (PostgREST) · Apple Vision (Freistellung der Zutaten-Bilder).
 
+## Setup & Start
+
+1. Repo klonen und `KiDSKiTCHEN.xcodeproj` in **Xcode 26+** öffnen.
+2. Ein iOS-**26**-Ziel wählen (Simulator oder Gerät) und ▶︎ Run.
+
+Die App läuft direkt — ohne Konfiguration zeigt sie die handkuratierten
+**Seed-Rezepte** offline an. Für die Live-Rezepte aus dem Backend braucht es den
+Supabase-anon-Key als Umgebungsvariable:
+
+- **Product → Scheme → Edit Scheme… → Run → Arguments → Environment Variables**
+- Name `SUPABASE_ANON_KEY`, Wert = anon-Key (Supabase: *Project Settings → API*).
+
+Fehlt der Key, fällt die App still auf die Seed-Rezepte zurück. Die Projekt-URL
+steht (als kein Geheimnis) in `KiDSKiTCHEN/Config/SupabaseSecrets.swift`; der Key
+selbst liegt bewusst **nicht** im Code.
+
+> Hinweis: Scheme-Env-Variablen greifen nur beim Start aus Xcode (Debug/Simulator),
+> nicht im Archive/Release-Build.
+
 ## Zu meiner Person
 
 Ich bin Joscha aus Berlin. Nach 20 Jahren in der Gastronomie, habe ich mich 
