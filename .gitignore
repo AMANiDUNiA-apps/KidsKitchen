@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Xcode – User-spezifisch / Build-Produkte
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+
+# Secrets – NIEMALS einchecken (Supabase-Keys etc.)
+*.env
+*.env.*
+Secrets.swift
+Secrets.plist
+**/Secrets/
+
+# Session-Tooling (nicht Projekt-Code)
+.mcp.json
+.claude/
