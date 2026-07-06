@@ -1,4 +1,5 @@
 <img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/372c2da2-03fd-44cb-b1e7-5bcf23f7ddab" />
+
 # KidsKitchen
 
 ![2024–2026](https://img.shields.io/badge/2024–2026-white?style=flat)
