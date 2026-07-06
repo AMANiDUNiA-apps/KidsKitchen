@@ -52,10 +52,10 @@ Supabase (PostgREST) · Apple Vision (Freistellung der Zutaten-Bilder).
 
 ## Zu meiner Person
 
-Ich bin Joscha aus Berlin. Ich komme aus der Gastronomie (knapp 20 Jahre) und habe
-beim Syntax Institut zum App-Entwickler umgeschult — im Programmieren von Apps habe
-ich meine Passion gefunden. Dieses Projekt zeigt meine Arbeitsweise und meinen
-Anspruch an sauberen, aktuellen Code.
+Ich bin Joscha aus Berlin. Nach 20 Jahren in der Gastronomie, habe ich mich 
+beim Syntax Institut zum App-Entwickler "weiterbilden" lassen. Boot Camp trifft es wahrscheinlich eher. 
+— im Programmieren von Apps habe ich meine Passion gefunden. Dieses Projekt zeigt meine Arbeitsweise und meinen
+Anspruch an sauberen, aktuellen Code. Hmmm naja ... bleiben wir ehrlich, claude hat fast alles weitergeschrieben.
 
 ## Recherche & Quellen
 
