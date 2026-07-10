@@ -8,18 +8,53 @@
 
 import SwiftUI
 
+private enum SaveState { case idle, saving, saved }
+
 struct Rezepte: View {
     let recipe: Recipe
     @State private var prefs: Preferences = .shared
     @State private var addedToCart = false
-    @State private var isSaved = false
-    @State private var isSaving = false
+    @State private var saveState: SaveState = .idle
+
+    private var saveConfig: AnimatedStateButton.Config {
+        switch saveState {
+        case .idle:
+            .init(title: "Rezept offline speichern",
+                  foregroundColor: .white,
+                  background: recipe.category?.color ?? .orange,
+                  symbolImage: "arrow.down.circle.fill")
+        case .saving:
+            .init(title: "Speichern …",
+                  foregroundColor: .white,
+                  background: recipe.category?.color ?? .orange,
+                  symbolImage: nil)
+        case .saved:
+            .init(title: "Offline gespeichert",
+                  foregroundColor: .white,
+                  background: .green,
+                  symbolImage: "checkmark.circle.fill")
+        }
+    }
 
     var body: some View {
         List {
             // Beschreibung
             if !recipe.details.isEmpty {
                 Section { Text(recipe.details) }
+            }
+
+            // Offline speichern — Zustands-Button (echte async-Aktion: läuft → fertig ✓)
+            Section {
+                AnimatedStateButton(config: saveConfig) {
+                    guard saveState != .saved else { return }
+                    withAnimation { saveState = .saving }
+                    await SavedRecipeRepository.shared.save(recipe)
+                    withAnimation { saveState = .saved }
+                }
+                .allowsHitTesting(saveState != .saved)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             // Kurzinfo
@@ -84,22 +119,12 @@ struct Rezepte: View {
         }
         .navigationTitle(recipe.name)
         .navigationBarTitleDisplayMode(.large)
-        .task { isSaved = SavedRecipeRepository.shared.isSaved(recipe.name) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task {
-                        isSaving = true
-                        await SavedRecipeRepository.shared.save(recipe)
-                        isSaved = true
-                        isSaving = false
-                    }
-                } label: {
-                    Label("Offline speichern",
-                          systemImage: isSaved ? "arrow.down.circle.fill" : "arrow.down.circle")
-                }
-                .disabled(isSaved || isSaving)
+        .task {
+            if saveState != .saving {
+                saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
             }
+        }
+        .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     ForEach(Weekday.allCases) { day in
