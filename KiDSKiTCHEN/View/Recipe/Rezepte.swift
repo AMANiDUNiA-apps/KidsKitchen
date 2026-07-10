@@ -134,6 +134,9 @@ struct Rezepte: View {
             }
 
             // Portionen — Auswahl-Rad, skaliert die Zutatenmengen ehrlich mit.
+            // Rad-Clipping-Fix (Jay-Screenshot 10.7.): horizontaler Innenabstand gibt
+            // dem Halbkreis Luft; die KKCard clippt nicht → die runden Rad-Enden werden
+            // nicht mehr an der Kartenkante abgeschnitten.
             KKSection(title: "Portionen", systemImage: "person.2.fill", tint: tint) {
                 WheelPickerView(range: 1...12, selectedValue: $servings,
                                 config: .init(activeTint: tint)) { value in
@@ -146,6 +149,7 @@ struct Rezepte: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.horizontal, 24)
                 .accessibilityRepresentation {
                     Stepper("Portionen: \(servings)", value: $servings, in: 1...12)
                 }
