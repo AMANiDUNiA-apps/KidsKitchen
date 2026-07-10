@@ -89,10 +89,10 @@ struct Rezepte: View {
 
     var body: some View {
         KKScroll {
-            // Beschreibung
+            // Beschreibung — lange API-Texte klappen mit „mehr anzeigen" auf.
             if !recipe.details.isEmpty {
                 KKCard {
-                    Text(recipe.details)
+                    ExpandableText(text: recipe.details)
                 }
             }
 
