@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var prefs: Preferences = .shared
+    // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
+    @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
 
     var body: some View {
         TabView {
@@ -28,11 +30,19 @@ struct ContentView: View {
         }
         .tint(.orange)
         .environment(\.locale, Locale(identifier: "de_DE"))
+        .fullScreenCover(isPresented: Binding(
+            get: { !hasOnboarded },
+            set: { presented in if !presented { hasOnboarded = true } }
+        )) {
+            OnboardingView { hasOnboarded = true }
+        }
     }
 }
 
 // MARK: - MoreView
 private struct MoreView: View {
+    @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
+
     var body: some View {
         List {
             NavigationLink { SavedRecipesView() } label: {
@@ -43,6 +53,15 @@ private struct MoreView: View {
             }
             NavigationLink { PreferencesView() } label: {
                 Label("Filter & Diät", systemImage: "slider.horizontal.3")
+            }
+
+            Section {
+                Button {
+                    // Startet das Erst-Start-Onboarding erneut (ContentView-Cover reagiert).
+                    hasOnboarded = false
+                } label: {
+                    Label("Einführung nochmal ansehen", systemImage: "sparkles")
+                }
             }
         }
         .navigationTitle("Mehr")

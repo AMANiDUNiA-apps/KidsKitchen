@@ -70,6 +70,12 @@ final class Preferences {
         else { excluded.insert(ingredientName) }
     }
 
+    /// Mehrere Zutaten auf einmal aus-/einschließen (für Onboarding-Presets).
+    func setExcluded(_ ingredientNames: [String], excluded shouldExclude: Bool) {
+        if shouldExclude { excluded.formUnion(ingredientNames) }
+        else { excluded.subtract(ingredientNames) }
+    }
+
     // MARK: Einkaufsliste
     func addToShopping(_ recipe: Recipe) {
         for item in recipe.ingredients {
