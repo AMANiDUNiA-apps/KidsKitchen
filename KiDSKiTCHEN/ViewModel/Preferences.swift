@@ -16,6 +16,19 @@ struct ShoppingItem: Identifiable, Codable, Hashable {
     var id = UUID()
     var text: String
     var done: Bool = false
+    /// Kategorie der Zutat (seit Teil C). Optional: Alt-Posten aus früheren
+    /// Versionen haben den Schlüssel nicht → nil, dann per `resolvedCategory`
+    /// aus dem Text abgeleitet.
+    var category: IngredientCategory?
+
+    /// Echte Kategorie für Filter/Anzeige — leitet fehlende Werte aus dem Text ab.
+    var resolvedCategory: IngredientCategory {
+        if let category { return category }
+        if let match = Ingredient.seed.first(where: { text.localizedCaseInsensitiveContains($0.name) }) {
+            return match.category
+        }
+        return .other
+    }
 }
 
 // MARK: - Preferences
@@ -91,7 +104,7 @@ final class Preferences {
         for item in recipe.ingredients {
             let text = factor == 1 ? item.formatted : item.formatted(scaledBy: factor)
             if !shopping.contains(where: { $0.text == text }) {
-                shopping.append(ShoppingItem(text: text))
+                shopping.append(ShoppingItem(text: text, category: item.ingredient.category))
             }
         }
     }
