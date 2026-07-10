@@ -23,6 +23,9 @@ struct Rezepte: View {
     @State private var showTutorial = false
     // Portionswahl (WheelPicker) — startet bei der Basis-Portionszahl des Rezepts.
     @State private var servings: Int
+    // Zutatenliste gestaffelt einblenden (nur ohne Reduce-Motion).
+    @State private var ingredientsVisible = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(recipe: Recipe) {
         self.recipe = recipe
@@ -65,6 +68,16 @@ struct Rezepte: View {
             try? await Task.sleep(for: .seconds(2.2))
             guard !Task.isCancelled else { return }
             withAnimation(.snappy) { showToast = false }
+        }
+    }
+
+    /// Eine Zutatenzeile mit Verlinkung in die Zutat-Detailansicht.
+    @ViewBuilder
+    private func ingredientLink(_ item: RecipeIngredient) -> some View {
+        NavigationLink {
+            IngredientDetailView(ingredient: item.ingredient)
+        } label: {
+            IngredientVisualRow(item: item, factor: scaleFactor)
         }
     }
 
@@ -157,11 +170,14 @@ struct Rezepte: View {
 
             // Zutaten — visuell mit Kategorie-Icon
             Section("Zutaten") {
-                ForEach(recipe.ingredients) { item in
-                    NavigationLink {
-                        IngredientDetailView(ingredient: item.ingredient)
-                    } label: {
-                        IngredientVisualRow(item: item, factor: scaleFactor)
+                // Reduce-Motion: ohne Staffelung direkt anzeigen. Sonst gestaffelt einblenden.
+                if reduceMotion {
+                    ForEach(recipe.ingredients) { item in ingredientLink(item) }
+                } else {
+                    StaggeredView {
+                        ForEach(ingredientsVisible ? recipe.ingredients : []) { item in
+                            ingredientLink(item)
+                        }
                     }
                 }
                 Button {
@@ -198,6 +214,10 @@ struct Rezepte: View {
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
+            }
+            // Zutaten gestaffelt einblenden (einmal pro Detailöffnung).
+            if !reduceMotion, !ingredientsVisible {
+                withAnimation { ingredientsVisible = true }
             }
         }
         .task {
