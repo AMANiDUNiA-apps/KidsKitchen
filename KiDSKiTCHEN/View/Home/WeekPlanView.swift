@@ -6,9 +6,14 @@
 //  Wochenplaner: je Wochentag geplante Rezepte, heutiger Tag hervorgehoben.
 //  Rezepte werden aus der Detailansicht („Zum Wochenplan") hinzugefügt.
 //
-//  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — KKScroll + KKCard.
-//  Entfernen als sichtbarer Lösch-Knopf statt Swipe (Jay 11.7., Herz-Knopf-Referenz).
-//  Teil C setzt auf diesen Container die gepinnte Wochenansicht (CalendarScrollEffect).
+//  Weiterbau 4, Teil C — Wochenansicht mit gepinnten Tages-Headern und einem
+//  Wochenstreifen, der mit der Scrollposition mitläuft. Vorlage: Kavsoft
+//  „CalendarScrollEffect" (Balaji Venkatesh) — pinnedViews-Sticky-Header +
+//  scrollPosition-Sync, hier auf das echte Weekday/Plan-Modell adaptiert
+//  (deutsche Wochentage, KEINE erfundenen Kalender-Termine).
+//
+//  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`. Entfernen als
+//  sichtbarer Lösch-Knopf (Jay 11.7., Herz-Knopf-Referenz).
 //
 
 import SwiftUI
@@ -16,35 +21,86 @@ import SwiftUI
 struct WeekPlanView: View {
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
+    // Startet oben am Wochenanfang (Montag) — der Streifen spiegelt so von Anfang an
+    // die echte Scrollposition. „Heute" bleibt über Badge + Punkt klar markiert.
+    // (Auto-Scroll-zu-heute bewusst weggelassen: bei LazyVStack nicht verlässlich
+    //  ohne Klick-Test verifizierbar, und der Streifen würde sonst desynchron wirken.)
+    @State private var selectedDay: Weekday? = Weekday.allCases.first
+    @Namespace private var stripNamespace
 
     var body: some View {
-        KKScroll {
-            ForEach(Weekday.allCases) { day in
-                VStack(alignment: .leading, spacing: 8) {
-                    dayHeader(day)
-                    KKCard {
-                        let names = prefs.plannedRecipes(day)
-                        if names.isEmpty {
-                            Text("nichts geplant")
-                                .foregroundStyle(.tertiary)
-                                .font(.subheadline)
-                        } else {
-                            VStack(spacing: 0) {
-                                ForEach(Array(names.enumerated()), id: \.element) { index, name in
-                                    if index > 0 { Divider() }
-                                    planRow(name: name, day: day)
-                                }
+        VStack(spacing: 0) {
+            weekStrip
+
+            GeometryReader { geo in
+                ScrollView(.vertical) {
+                    // Native pinned section headers erzeugen den Klebe-Effekt (Kavsoft).
+                    LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+                        ForEach(Weekday.allCases) { day in
+                            Section {
+                                dayContent(day)
+                                    // Der letzte Tag braucht Resthöhe, damit er beim
+                                    // Antippen ganz nach oben scrollen kann.
+                                    .frame(minHeight: day == Weekday.allCases.last ? geo.size.height - 120 : nil,
+                                           alignment: .top)
+                            } header: {
+                                dayHeader(day)
                             }
                         }
                     }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
                 }
+                .scrollPosition(id: $selectedDay, anchor: .top)
+                .background(Color(.systemGroupedBackground))
             }
         }
         .navigationTitle("Wochenplan")
         .navigationBarTitleDisplayMode(.inline)
+        .animation(.snappy(duration: 0.25), value: selectedDay)
     }
 
-    // MARK: Tages-Kopf
+    // MARK: Wochenstreifen (springt zum Tag, folgt der Scrollposition)
+    private var weekStrip: some View {
+        HStack(spacing: 0) {
+            ForEach(Weekday.allCases) { day in
+                let isSelected = day == selectedDay
+                VStack(spacing: 4) {
+                    Text(day.short)
+                        .font(.caption.bold())
+                        .foregroundStyle(isSelected ? .white : .secondary)
+                    if day == Weekday.today {
+                        Circle()
+                            .fill(isSelected ? Color.white : Color.orange)
+                            .frame(width: 5, height: 5)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(.orange)
+                            .matchedGeometryEffect(id: "selectedDay", in: stripNamespace)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.snappy(duration: 0.25)) { selectedDay = day }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(day.rawValue + (day == Weekday.today ? ", heute" : ""))
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    // MARK: Gepinnter Tages-Header
     private func dayHeader(_ day: Weekday) -> some View {
         HStack(spacing: 8) {
             Text(day.rawValue)
@@ -58,9 +114,39 @@ struct WeekPlanView: View {
                     .foregroundStyle(.white)
             }
             Spacer(minLength: 0)
+            let count = prefs.plannedRecipes(day).count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Deckt beim Kleben den durchscrollenden Inhalt zu.
+        .background(Color(.systemGroupedBackground))
         .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Tages-Inhalt
+    @ViewBuilder
+    private func dayContent(_ day: Weekday) -> some View {
+        let names = prefs.plannedRecipes(day)
+        KKCard {
+            if names.isEmpty {
+                Text("nichts geplant")
+                    .foregroundStyle(.tertiary)
+                    .font(.subheadline)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(names.enumerated()), id: \.element) { index, name in
+                        if index > 0 { Divider() }
+                        planRow(name: name, day: day)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: Zeile
