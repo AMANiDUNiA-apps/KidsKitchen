@@ -18,6 +18,11 @@ struct Rezepte: View {
     @State private var toastConfig = InlineToastConfig(icon: "checkmark", title: "", tint: .green)
     @State private var showToast = false
     @State private var toastTask: Task<Void, Never>?
+    // Einmaliges Gesten-Tutorial beim ersten geöffneten Rezept.
+    @AppStorage("kk.hasSeenGestureTutorial") private var hasSeenTutorial = false
+    @State private var showTutorial = false
+
+    private var tint: Color { recipe.category?.color ?? .orange }
 
     private var saveConfig: AnimatedStateButton.Config {
         switch saveState {
@@ -137,12 +142,27 @@ struct Rezepte: View {
             }
         }
         .inlineToast(config: toastConfig, isPresented: showToast)
+        .overlay {
+            if showTutorial {
+                GestureTutorialOverlay(tint: tint) {
+                    hasSeenTutorial = true
+                    withAnimation(.smooth(duration: 0.25)) { showTutorial = false }
+                }
+            }
+        }
         .navigationTitle(recipe.name)
         .navigationBarTitleDisplayMode(.large)
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
             }
+        }
+        .task {
+            // Kurz warten, damit die Detailansicht steht, bevor das Tutorial erscheint.
+            guard !hasSeenTutorial else { return }
+            try? await Task.sleep(for: .seconds(0.45))
+            guard !hasSeenTutorial else { return }
+            showTutorial = true
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
