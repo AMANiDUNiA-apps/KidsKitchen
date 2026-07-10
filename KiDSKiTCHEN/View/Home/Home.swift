@@ -23,6 +23,29 @@ struct Home: View {
     @State private var favoritesOnly = false
     @State private var pantryOnly = false
     @State private var kidsCat: RecipeCategory? = nil
+    @State private var weekCarouselIndex = 0
+
+    /// True im normalen Stöber-Zustand (keine Suche/Filter aktiv) — nur dann zeigt
+    /// Home das Wochen-Karussell, damit es das gefilterte Blättern nicht überlagert.
+    private var isBrowsingDefault: Bool {
+        search.isEmpty && kidsCat == nil && !favoritesOnly && !pantryOnly
+    }
+
+    /// Ehrliche Wochen-Rotation: deterministisch aus der Kalenderwoche über den
+    /// echten Rezeptbestand (der zur Diät passt und nichts Ausgeschlossenes enthält).
+    /// Keine „Empfehlungs-KI" — dieselbe Woche ergibt immer dieselbe Auswahl, und
+    /// die Auswahl wandert Woche für Woche weiter.
+    private var weeklyPicks: [Recipe] {
+        let pool = viewModel.recipes.filter {
+            $0.fits(prefs.diet) && !$0.containsExcluded(prefs.excluded)
+        }
+        guard !pool.isEmpty else { return [] }
+        let ordered = pool.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let week = Calendar(identifier: .gregorian).component(.weekOfYear, from: .now)
+        let start = week % ordered.count
+        let count = min(5, ordered.count)
+        return (0..<count).map { ordered[(start + $0) % ordered.count] }
+    }
 
     private var filtered: [Recipe] {
         viewModel.recipes.filter { recipe in
@@ -64,6 +87,12 @@ struct Home: View {
                 categoryChips
                     .padding(.top, 4)
                     .padding(.bottom, 6)
+
+                // Wochen-Karussell (Teil D) — nur im normalen Stöber-Zustand.
+                if isBrowsingDefault && weeklyPicks.count >= 2 {
+                    weeklySpotlight
+                        .padding(.bottom, 4)
+                }
 
                 if filtered.isEmpty {
                     ContentUnavailableView(
@@ -118,6 +147,43 @@ struct Home: View {
                     NewRecipe(newRecipe: .emptyMock)
                 } label: { Image(systemName: "plus") }
             }
+        }
+    }
+
+    // MARK: Wochen-Karussell (Teil D)
+    private var weeklySpotlight: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("Diese Woche")
+                    .font(.system(.title3, design: .serif).bold())
+                Spacer(minLength: 8)
+                Label("wechselt jede Woche", systemImage: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
+            }
+            .padding(.horizontal, 20)
+
+            KKCarousel(activeIndex: $weekCarouselIndex) {
+                ForEach(weeklyPicks) { recipe in
+                    NavigationLink { Rezepte(recipe: recipe) } label: {
+                        WeeklyCard(recipe: recipe)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(height: 150)
+
+            // Punkt-Indikator (spiegelt die sichtbare Seite).
+            HStack(spacing: 6) {
+                ForEach(weeklyPicks.indices, id: \.self) { i in
+                    Circle()
+                        .fill(i == weekCarouselIndex ? Color.orange : Color.secondary.opacity(0.3))
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityHidden(true)
         }
     }
 
@@ -280,6 +346,52 @@ private struct KidsRecipeRow: View {
         }
         .padding(14)
         .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - Wochen-Karten
+/// Farbige Vorschlags-Karte fürs Wochen-Karussell. Noch ohne Foto (die
+/// Zutaten-/Rezept-Bilder kommen aus der macMini-Pipeline) — nutzt bis dahin
+/// Kategorie-Farbe + Symbol, kein Bildplatzhalter.
+private struct WeeklyCard: View {
+    let recipe: Recipe
+
+    var body: some View {
+        let color = recipe.category?.color ?? .orange
+        HStack(spacing: 16) {
+            ZStack {
+                Circle().fill(.white.opacity(0.25)).frame(width: 74, height: 74)
+                Image(systemName: recipe.category?.symbolName ?? "fork.knife")
+                    .font(.system(size: 34))
+                    .foregroundStyle(.white)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(recipe.category?.rawValue ?? "Rezept")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white.opacity(0.9))
+                Text(recipe.name)
+                    .font(.system(.title3, design: .serif).bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                if recipe.totalTime > 0 {
+                    Label("\(recipe.totalTime) min", systemImage: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(colors: [color, color.opacity(0.7)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: color.opacity(0.25), radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(recipe.name), \(recipe.category?.rawValue ?? "Rezept")")
     }
 }
 
