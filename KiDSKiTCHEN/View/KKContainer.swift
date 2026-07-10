@@ -87,6 +87,28 @@ struct KKSection<Content: View>: View {
     }
 }
 
+// MARK: - KKDeleteButton
+/// Sichtbarer, kindgerechter Lösch-Knopf (ersetzt den versteckten List-Swipe).
+/// Konsequenz aus Jays Herz-Knopf-Entscheid 11.7.: sichtbare Bedienung statt
+/// versteckter Geste. Gleiche Maße/Trefferfläche wie der Favoriten-Knopf (34×34,
+/// runde contentShape), damit Kinderfinger sicher treffen. Immer mit VoiceOver-Label.
+struct KKDeleteButton: View {
+    var accessibilityLabel: String = "Löschen"
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: .destructive, action: action) {
+            Image(systemName: "trash")
+                .font(.title3)
+                .foregroundStyle(.red)
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
 // MARK: - KKScroll
 /// Vertikaler Grund-Container: ScrollView + LazyVStack mit einheitlichem Rand.
 /// Für einfache, ungruppierte Listen (Rezept-Detail). Home nutzt eine eigene
