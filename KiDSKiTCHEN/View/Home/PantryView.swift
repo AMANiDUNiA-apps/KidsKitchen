@@ -108,9 +108,9 @@ private struct PantryTile: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    // Gesetzte Menge (nur wenn hinterlegt) — ehrlicher Wert
+                    // Gesetzte Menge (nur wenn hinterlegt) — echte Einheit der Zutat
                     if let amount {
-                        Text("\(amount) g")
+                        Text(ingredient.unit.formattedAmount(amount))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(ingredient.category.color)
                     }
@@ -144,25 +144,27 @@ private struct PantryTile: View {
 
     private var pantryValueDescription: String {
         guard inStock else { return "nicht im Vorrat" }
-        if let amount { return "im Vorrat, \(amount) Gramm" }
+        if let amount { return "im Vorrat, \(amount) \(ingredient.unit.title)" }
         return "im Vorrat"
     }
 }
 
 // MARK: - PantryAmountSheet
 /// Mengen-Eingabe für eine Vorrats-Zutat über den analogen Strich-Picker
-/// (Kavsoft `TickPicker`). Schreibt echte Gramm-Werte in die Preferences.
+/// (Kavsoft `TickPicker`). Schreibt echte Werte in der KANONISCHEN Einheit der
+/// Zutat (g/ml/Stück …) in die Preferences — keine Umrechnung.
 private struct PantryAmountSheet: View {
     let ingredient: Ingredient
     @Bindable var prefs: Preferences
     @Environment(\.dismiss) private var dismiss
 
-    /// Auswahl in 10-g-Schritten (0…200 Ticks → 0…2000 g).
-    @State private var tick: Int = 0
-    private let step = 10
-    private let maxTicks = 200
+    /// Einheit der Zutat bestimmt Schrittweite, Höchstwert und Beschriftung.
+    private var unit: IngredientUnit { ingredient.unit }
+    private var step: Int { unit.pantryStep }
+    private var maxTicks: Int { unit.pantryMaxValue / unit.pantryStep }
 
-    private var grams: Int { tick * step }
+    @State private var tick: Int = 0
+    private var value: Int { tick * step }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -175,10 +177,10 @@ private struct PantryAmountSheet: View {
             }
             .padding(.top, 24)
 
-            Text("\(grams) g")
+            Text(unit.formattedAmount(value))
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .contentTransition(.numericText())
-                .animation(.snappy, value: grams)
+                .animation(.snappy, value: value)
 
             TickPicker(
                 count: maxTicks,
@@ -199,7 +201,7 @@ private struct PantryAmountSheet: View {
                 .buttonStyle(.bordered)
 
                 Button {
-                    prefs.setPantryAmount(grams, for: ingredient.name)
+                    prefs.setPantryAmount(value, for: ingredient.name)
                     dismiss()
                 } label: {
                     Label("Sichern", systemImage: "checkmark")

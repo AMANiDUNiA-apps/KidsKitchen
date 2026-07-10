@@ -7,44 +7,49 @@
 //  alle Kategorien vertreten. Die Massenbefüllung kommt später aus
 //  Supabase/USDA (siehe SESSION-mac-apps.md, Nutrition-Pipeline).
 //
+//  Einheiten (W6, Teil B): jede Zutat trägt ihre KANONISCHE Maßeinheit für
+//  Vorrat/Einkauf. Nur eindeutige Fälle sind gesetzt — `.piece` für zählbare
+//  ganze Stücke, `.milliliter` für Flüssiges. Alles Übrige bleibt Default `.gram`
+//  (Schütt-/Wiegezutaten). KEINE Umrechnungen, nur die reale Einheit.
+//
 
 import Foundation
 
 extension Ingredient {
     static let seed: [Ingredient] = [
         // MARK: Obst
-        Ingredient(name: "Apfel", category: .fruit),
-        Ingredient(name: "Banane", category: .fruit),
-        Ingredient(name: "Birne", category: .fruit),
+        Ingredient(name: "Apfel", category: .fruit, unit: .piece),
+        Ingredient(name: "Banane", category: .fruit, unit: .piece),
+        Ingredient(name: "Birne", category: .fruit, unit: .piece),
         Ingredient(name: "Erdbeere", category: .fruit),
         Ingredient(name: "Himbeere", category: .fruit),
         Ingredient(name: "Heidelbeere", category: .fruit),
         Ingredient(name: "Traube", category: .fruit),
-        Ingredient(name: "Orange", category: .fruit),
-        Ingredient(name: "Mandarine", category: .fruit),
-        Ingredient(name: "Zitrone", category: .fruit),
-        Ingredient(name: "Pfirsich", category: .fruit),
+        Ingredient(name: "Orange", category: .fruit, unit: .piece),
+        Ingredient(name: "Mandarine", category: .fruit, unit: .piece),
+        Ingredient(name: "Zitrone", category: .fruit, unit: .piece),
+        Ingredient(name: "Pfirsich", category: .fruit, unit: .piece),
         Ingredient(name: "Kirsche", category: .fruit),
-        Ingredient(name: "Wassermelone", category: .fruit),
-        Ingredient(name: "Pflaume", category: .fruit),
+        Ingredient(name: "Wassermelone", category: .fruit, unit: .piece),
+        Ingredient(name: "Pflaume", category: .fruit, unit: .piece),
 
         // MARK: Gemüse
-        Ingredient(name: "Karotte", category: .vegetable),
-        Ingredient(name: "Kartoffel", category: .vegetable),
-        Ingredient(name: "Süßkartoffel", category: .vegetable),
-        Ingredient(name: "Tomate", category: .vegetable),
-        Ingredient(name: "Gurke", category: .vegetable),
-        Ingredient(name: "Paprika", category: .vegetable),
-        Ingredient(name: "Zucchini", category: .vegetable),
+        Ingredient(name: "Karotte", category: .vegetable, unit: .piece),
+        Ingredient(name: "Kartoffel", category: .vegetable, unit: .piece),
+        Ingredient(name: "Süßkartoffel", category: .vegetable, unit: .piece),
+        Ingredient(name: "Tomate", category: .vegetable, unit: .piece),
+        Ingredient(name: "Gurke", category: .vegetable, unit: .piece),
+        Ingredient(name: "Paprika", category: .vegetable, unit: .piece),
+        Ingredient(name: "Zucchini", category: .vegetable, unit: .piece),
         Ingredient(name: "Brokkoli", category: .vegetable),
         Ingredient(name: "Blumenkohl", category: .vegetable),
         Ingredient(name: "Spinat", category: .vegetable),
         Ingredient(name: "Erbsen", category: .vegetable),
         Ingredient(name: "Mais", category: .vegetable),
         Ingredient(name: "Kürbis", category: .vegetable),
-        Ingredient(name: "Zwiebel", category: .vegetable),
+        Ingredient(name: "Zwiebel", category: .vegetable, unit: .piece),
         Ingredient(name: "Knoblauch", category: .vegetable),
-        Ingredient(name: "Salat", category: .vegetable),
+        Ingredient(name: "Salat", category: .vegetable, unit: .piece),
 
         // MARK: Getreide
         Ingredient(name: "Haferflocken", category: .cereals),
@@ -58,7 +63,7 @@ extension Ingredient {
         Ingredient(name: "Quinoa", category: .cereals),
         Ingredient(name: "Hirse", category: .cereals),
         Ingredient(name: "Brot", category: .cereals),
-        Ingredient(name: "Toast", category: .cereals),
+        Ingredient(name: "Toast", category: .cereals, unit: .piece),
         Ingredient(name: "Grieß", category: .cereals),
 
         // MARK: Nüsse & Saat
@@ -74,14 +79,14 @@ extension Ingredient {
         Ingredient(name: "Chiasamen", category: .nuts),
 
         // MARK: Milchprodukte
-        Ingredient(name: "Milch", category: .dairy),
+        Ingredient(name: "Milch", category: .dairy, unit: .milliliter),
         Ingredient(name: "Joghurt", category: .dairy),
         Ingredient(name: "Quark", category: .dairy),
         Ingredient(name: "Frischkäse", category: .dairy),
         Ingredient(name: "Käse", category: .dairy),
         Ingredient(name: "Mozzarella", category: .dairy),
         Ingredient(name: "Parmesan", category: .dairy),
-        Ingredient(name: "Sahne", category: .dairy),
+        Ingredient(name: "Sahne", category: .dairy, unit: .milliliter),
         Ingredient(name: "Schmand", category: .dairy),
 
         // MARK: Rotes Fleisch
@@ -101,25 +106,25 @@ extension Ingredient {
         Ingredient(name: "Kabeljau", category: .fish),
         Ingredient(name: "Thunfisch", category: .fish),
         Ingredient(name: "Garnelen", category: .fish),
-        Ingredient(name: "Fischstäbchen", category: .fish),
+        Ingredient(name: "Fischstäbchen", category: .fish, unit: .piece),
 
         // MARK: Fette & Öle
         Ingredient(name: "Butter", category: .fatsAndOils),
-        Ingredient(name: "Olivenöl", category: .fatsAndOils),
-        Ingredient(name: "Rapsöl", category: .fatsAndOils),
-        Ingredient(name: "Sonnenblumenöl", category: .fatsAndOils),
+        Ingredient(name: "Olivenöl", category: .fatsAndOils, unit: .milliliter),
+        Ingredient(name: "Rapsöl", category: .fatsAndOils, unit: .milliliter),
+        Ingredient(name: "Sonnenblumenöl", category: .fatsAndOils, unit: .milliliter),
         Ingredient(name: "Kokosöl", category: .fatsAndOils),
         Ingredient(name: "Margarine", category: .fatsAndOils),
 
         // MARK: Kräuter
-        Ingredient(name: "Petersilie", category: .herbs),
-        Ingredient(name: "Schnittlauch", category: .herbs),
-        Ingredient(name: "Basilikum", category: .herbs),
-        Ingredient(name: "Dill", category: .herbs),
-        Ingredient(name: "Rosmarin", category: .herbs),
-        Ingredient(name: "Thymian", category: .herbs),
-        Ingredient(name: "Oregano", category: .herbs),
-        Ingredient(name: "Minze", category: .herbs),
+        Ingredient(name: "Petersilie", category: .herbs, unit: .bunch),
+        Ingredient(name: "Schnittlauch", category: .herbs, unit: .bunch),
+        Ingredient(name: "Basilikum", category: .herbs, unit: .bunch),
+        Ingredient(name: "Dill", category: .herbs, unit: .bunch),
+        Ingredient(name: "Rosmarin", category: .herbs, unit: .bunch),
+        Ingredient(name: "Thymian", category: .herbs, unit: .bunch),
+        Ingredient(name: "Oregano", category: .herbs, unit: .bunch),
+        Ingredient(name: "Minze", category: .herbs, unit: .bunch),
 
         // MARK: Gewürze
         Ingredient(name: "Salz", category: .spices),
@@ -132,7 +137,7 @@ extension Ingredient {
         Ingredient(name: "Vanillezucker", category: .spices),
 
         // MARK: Sonstige
-        Ingredient(name: "Ei", category: .other),
+        Ingredient(name: "Ei", category: .other, unit: .piece),
         Ingredient(name: "Honig", category: .other),
         Ingredient(name: "Zucker", category: .other),
         Ingredient(name: "Backpulver", category: .other),
@@ -140,11 +145,11 @@ extension Ingredient {
         Ingredient(name: "Kakao", category: .other),
         Ingredient(name: "Schokolade", category: .other),
         Ingredient(name: "Marmelade", category: .other),
-        Ingredient(name: "Essig", category: .other),
+        Ingredient(name: "Essig", category: .other, unit: .milliliter),
         Ingredient(name: "Senf", category: .other),
         Ingredient(name: "Ketchup", category: .other),
         Ingredient(name: "Tomatenmark", category: .other),
-        Ingredient(name: "Gemüsebrühe", category: .other),
+        Ingredient(name: "Gemüsebrühe", category: .other, unit: .milliliter),
         Ingredient(name: "Apfelmus", category: .other),
         Ingredient(name: "Rosinen", category: .other),
     ]

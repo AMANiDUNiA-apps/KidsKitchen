@@ -19,6 +19,10 @@ class Ingredient: Identifiable, Hashable {
     var imageURL: String?
     var details: String?
     var isSelected: Bool
+    /// Kanonische Maßeinheit dieser Zutat für Vorrat/Einkauf (g/ml/Stück …).
+    /// KEINE Umrechnung — die reale Maßeinheit der Zutat (Milch → ml, Ei → Stück,
+    /// Mehl → g). Default `.gram` deckt alle Schütt-/Wiegezutaten ab.
+    var unit: IngredientUnit
 
     init(
         id: UUID = UUID(),
@@ -26,7 +30,8 @@ class Ingredient: Identifiable, Hashable {
         category: IngredientCategory = .other,
         imageURL: String? = nil,
         details: String? = nil,
-        isSelected: Bool = false
+        isSelected: Bool = false,
+        unit: IngredientUnit = .gram
     ) {
         self.id = id
         self.name = name
@@ -34,6 +39,7 @@ class Ingredient: Identifiable, Hashable {
         self.imageURL = imageURL
         self.details = details
         self.isSelected = isSelected
+        self.unit = unit
     }
 
     // MARK: - Hashable

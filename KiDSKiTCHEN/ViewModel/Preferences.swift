@@ -128,14 +128,16 @@ final class Preferences {
         }
     }
 
-    /// Gesetzte Vorrats-Menge in Gramm (nil = keine Menge hinterlegt).
+    /// Gesetzte Vorrats-Menge in der kanonischen Einheit der Zutat (g/ml/Stück …);
+    /// nil = keine Menge hinterlegt. Der Wert ist einheitenlos gespeichert — die
+    /// Einheit liefert die Zutat (`Ingredient.unit`), es wird nichts umgerechnet.
     func pantryAmount(_ ingredientName: String) -> Int? { pantryAmounts[ingredientName] }
-    /// Menge in Gramm setzen. 0 löscht die Menge; setzt implizit „im Vorrat".
-    func setPantryAmount(_ grams: Int, for ingredientName: String) {
-        if grams <= 0 {
+    /// Menge setzen (in der Einheit der Zutat). 0 löscht die Menge; setzt implizit „im Vorrat".
+    func setPantryAmount(_ amount: Int, for ingredientName: String) {
+        if amount <= 0 {
             pantryAmounts[ingredientName] = nil
         } else {
-            pantryAmounts[ingredientName] = grams
+            pantryAmounts[ingredientName] = amount
             pantry.insert(ingredientName)
         }
     }

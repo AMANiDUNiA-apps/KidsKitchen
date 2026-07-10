@@ -36,4 +36,31 @@ enum IngredientUnit: String, Codable, CaseIterable, Identifiable {
         case .bunch: "Bund"
         }
     }
+
+    // MARK: - Vorrats-Picker (Strich-Picker rastert je Einheit passend)
+    // Keine Umrechnung zwischen Einheiten — nur die passende Schrittweite/Obergrenze
+    // für die jeweilige reale Einheit der Zutat.
+
+    /// Schrittweite pro Rastung im Vorrats-Strich-Picker.
+    var pantryStep: Int {
+        switch self {
+        case .gram, .milliliter: 10
+        case .piece, .bunch, .tablespoon, .teaspoon, .pinch: 1
+        case .kilogram, .liter: 1
+        }
+    }
+
+    /// Höchstwert im Vorrats-Strich-Picker (in dieser Einheit).
+    var pantryMaxValue: Int {
+        switch self {
+        case .gram, .milliliter: 2000
+        case .piece: 24
+        case .bunch: 10
+        case .tablespoon, .teaspoon, .pinch: 20
+        case .kilogram, .liter: 20
+        }
+    }
+
+    /// Menge mit Einheit formatiert, z. B. „200 ml", „3 Stück", „150 g".
+    func formattedAmount(_ value: Int) -> String { "\(value) \(rawValue)" }
 }
