@@ -14,41 +14,41 @@ struct IngredientDetailView: View {
     private var facts: NutritionFacts? { NutritionFacts.bls(for: ingredient.name) }
 
     var body: some View {
-        List {
-            Section { header }
+        // UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — KKScroll + KKSection.
+        KKScroll {
+            KKCard { header }
 
             if let facts {
-                Section("Nährwerte je 100 g") {
+                KKSection(title: "Nährwerte je 100 g", systemImage: "chart.bar") {
                     Picker("Detailtiefe", selection: $depth) {
                         ForEach(NutritionDepth.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    .listRowSeparator(.hidden)
 
                     IngredientNutritionBars(facts: facts, depth: depth)
-                        .listRowSeparator(.hidden)
                         .padding(.top, 4)
                 }
 
                 if !facts.highlights.isEmpty {
-                    Section("Gut zu wissen") {
+                    KKSection(title: "Gut zu wissen", systemImage: "sparkles") {
                         FlexibleChips(items: facts.highlights)
                     }
                 }
 
-                Section {
+                KKCard {
                     Text("Quelle: Bundeslebensmittelschlüssel — \(facts.source)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Section {
+                KKCard {
                     ContentUnavailableView(
                         "Nährwerte folgen",
                         systemImage: "fork.knife",
                         description: Text("Für \u{201E}\(ingredient.name)\u{201C} liegen noch keine Werte vor.")
                     )
                 }
+                .padding(.top, 40)
             }
         }
         .navigationTitle(ingredient.name)

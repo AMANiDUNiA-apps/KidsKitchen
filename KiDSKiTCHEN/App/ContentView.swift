@@ -40,31 +40,67 @@ struct ContentView: View {
 }
 
 // MARK: - MoreView
+// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — die Menüpunkte
+// sind eigene KKCards mit Symbol, Titel und Chevron.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
 
     var body: some View {
-        List {
-            NavigationLink { SavedRecipesView() } label: {
-                Label("Offline gespeichert", systemImage: "arrow.down.circle")
+        KKScroll {
+            navCard("Offline gespeichert", symbol: "arrow.down.circle", tint: .orange) {
+                SavedRecipesView()
             }
-            NavigationLink { PantryView() } label: {
-                Label("Vorratsschrank", systemImage: "cabinet")
+            navCard("Vorratsschrank", symbol: "cabinet", tint: .green) {
+                PantryView()
             }
-            NavigationLink { PreferencesView() } label: {
-                Label("Filter & Diät", systemImage: "slider.horizontal.3")
+            navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
+                PreferencesView()
             }
 
-            Section {
-                Button {
-                    // Startet das Erst-Start-Onboarding erneut (ContentView-Cover reagiert).
-                    hasOnboarded = false
-                } label: {
-                    Label("Einführung nochmal ansehen", systemImage: "sparkles")
+            Button {
+                // Startet das Erst-Start-Onboarding erneut (ContentView-Cover reagiert).
+                hasOnboarded = false
+            } label: {
+                menuRow("Einführung nochmal ansehen", symbol: "sparkles", tint: .pink, showsChevron: false)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+        }
+        .navigationTitle("Mehr")
+    }
+
+    private func navCard<Destination: View>(
+        _ title: String, symbol: String, tint: Color,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination()) {
+            menuRow(title, symbol: symbol, tint: tint, showsChevron: true)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func menuRow(_ title: String, symbol: String, tint: Color, showsChevron: Bool) -> some View {
+        KKCard {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(tint.opacity(0.15))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: symbol)
+                        .font(.title3)
+                        .foregroundStyle(tint)
+                }
+                Text(title)
+                    .font(.system(.body, design: .serif))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.bold())
+                        .foregroundStyle(.tertiary)
                 }
             }
         }
-        .navigationTitle("Mehr")
     }
 }
 
