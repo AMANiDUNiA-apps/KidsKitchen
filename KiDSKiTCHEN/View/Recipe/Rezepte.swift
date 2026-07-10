@@ -5,6 +5,11 @@
 //  Rezept-Detailansicht: visuelle Nährwertbalken, Zutaten mit Kategorie-Icons,
 //  nummerierte Zubereitungsschritte mit farbigen Schritt-Kreisen.
 //
+//  Container-Umbau 10.7. (Jay §UI-Bauweise): KEIN `List` mehr — KKScroll + KKSection
+//  (ScrollView + LazyVStack). Verhalten unverändert (Offline-Speichern, Portionen-Rad,
+//  Slide-Abhaken, Toasts, Staffel-Animation). Portionen-Rad sitzt jetzt mit Luft in
+//  einer nicht-clippenden Karte (Fix „Halbkreis abgehackt", Jay-Screenshot 10.7.).
+//
 
 import SwiftUI
 
@@ -79,31 +84,30 @@ struct Rezepte: View {
         } label: {
             IngredientVisualRow(item: item, factor: scaleFactor)
         }
+        .buttonStyle(.plain)
     }
 
     var body: some View {
-        List {
+        KKScroll {
             // Beschreibung
             if !recipe.details.isEmpty {
-                Section { Text(recipe.details) }
+                KKCard {
+                    Text(recipe.details)
+                }
             }
 
-            // Offline speichern — Zustands-Button (echte async-Aktion: läuft → fertig ✓)
-            Section {
-                AnimatedStateButton(config: saveConfig) {
-                    guard saveState != .saved else { return }
-                    withAnimation { saveState = .saving }
-                    await SavedRecipeRepository.shared.save(recipe)
-                    withAnimation { saveState = .saved }
-                }
-                .allowsHitTesting(saveState != .saved)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+            // Offline speichern — Zustands-Button (echte async-Aktion: läuft → fertig ✓).
+            // Bewusst ohne KKCard: der Knopf bringt eigene Fläche/Optik mit.
+            AnimatedStateButton(config: saveConfig) {
+                guard saveState != .saved else { return }
+                withAnimation { saveState = .saving }
+                await SavedRecipeRepository.shared.save(recipe)
+                withAnimation { saveState = .saved }
             }
+            .allowsHitTesting(saveState != .saved)
 
             // Kurzinfo
-            Section("Info") {
+            KKSection(title: "Info", systemImage: "info.circle", tint: tint) {
                 if let category = recipe.category {
                     Label(category.rawValue, systemImage: category.symbolName)
                         .foregroundStyle(category.color)
@@ -130,7 +134,7 @@ struct Rezepte: View {
             }
 
             // Portionen — Auswahl-Rad, skaliert die Zutatenmengen ehrlich mit.
-            Section("Portionen") {
+            KKSection(title: "Portionen", systemImage: "person.2.fill", tint: tint) {
                 WheelPickerView(range: 1...12, selectedValue: $servings,
                                 config: .init(activeTint: tint)) { value in
                     VStack(spacing: 0) {
@@ -142,7 +146,6 @@ struct Rezepte: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .listRowSeparator(.hidden)
                 .accessibilityRepresentation {
                     Stepper("Portionen: \(servings)", value: $servings, in: 1...12)
                 }
@@ -150,7 +153,6 @@ struct Rezepte: View {
                     Text("Mengen für \(servings) statt \(baseServings) Portionen angepasst.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .listRowSeparator(.hidden)
                 }
             }
 
@@ -158,18 +160,13 @@ struct Rezepte: View {
             // Werte sind PRO PORTION und damit unabhängig von der gewählten Portionszahl —
             // sie bleiben bewusst unverändert (keine erfundene Skalierung).
             if let nutrition = recipe.displayNutrition {
-                Section {
+                KKSection(title: "Nährwerte", tint: tint, footer: "je Portion") {
                     RecipeNutritionBars(nutrition: nutrition)
-                        .listRowSeparator(.hidden)
-                } header: {
-                    Text("Nährwerte")
-                } footer: {
-                    Text("je Portion")
                 }
             }
 
             // Zutaten — visuell mit Kategorie-Icon
-            Section("Zutaten") {
+            KKSection(title: "Zutaten", tint: tint) {
                 // Reduce-Motion: ohne Staffelung direkt anzeigen. Sonst gestaffelt einblenden.
                 if reduceMotion {
                     ForEach(recipe.ingredients) { item in ingredientLink(item) }
@@ -192,6 +189,7 @@ struct Rezepte: View {
                           systemImage: addedToCart ? "checkmark.circle.fill" : "cart.badge.plus")
                 }
                 .disabled(addedToCart)
+                .padding(.top, 4)
             }
 
             // Zubereitung — Schritt für Schritt, mit kindersicherer Slide-Bestätigung
@@ -268,7 +266,7 @@ private struct CookingSteps: View {
     private var allDone: Bool { doneCount >= instructions.count }
 
     var body: some View {
-        Section {
+        KKSection(title: "Zubereitung", systemImage: "list.number", tint: tint) {
             // Fortschritt
             VStack(alignment: .leading, spacing: 8) {
                 if allDone {
@@ -298,8 +296,6 @@ private struct CookingSteps: View {
             ForEach(Array(instructions.enumerated()), id: \.element.id) { idx, step in
                 stepRow(idx, step)
             }
-        } header: {
-            Text("Zubereitung")
         }
     }
 
@@ -363,7 +359,13 @@ private struct IngredientVisualRow: View {
                     .contentTransition(.numericText())
             }
             Spacer()
+            // Tap-Affordanz statt der früheren List-Disclosure — Zeile führt in die
+            // Zutat-Detailansicht.
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
+        .contentShape(Rectangle())
         .padding(.vertical, 2)
     }
 }

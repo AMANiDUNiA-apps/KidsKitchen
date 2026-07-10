@@ -4,9 +4,13 @@
 //
 //  Rezeptliste im Kids-Modus: Hero-Banner + horizontale Kategorie-Chips zum Stöbern,
 //  darunter die Rezepte in Abschnitten mit KLEBENDEN Kategorie-Headern (Food-App-Stil).
-//  UI-Muster nach Kavsoft „StickyHeaderList" portiert und an KidsKitchen angepasst
-//  (native List-Sticky-Sections; Hero als Verlaufs-Banner, da Bilder extern entstehen).
+//  UI-Muster nach Kavsoft „StickyHeaderList" portiert und an KidsKitchen angepasst.
 //  (Vormals vier umschaltbare Modi — auf Kids reduziert, 6.7.)
+//
+//  Container-Umbau 10.7. (Jay §UI-Bauweise): KEIN `List` mehr — ScrollView +
+//  LazyVStack(pinnedViews: [.sectionHeaders]) trägt die klebenden Kategorie-Header
+//  selbst; die Rezepte sitzen in eigenen KKCard/Row-Karten. Favorisieren früher per
+//  Leading-Swipe (List-only) → jetzt sichtbarer Herz-Knopf auf der Karte.
 //
 
 import SwiftUI
@@ -46,60 +50,63 @@ struct Home: View {
     }
 
     var body: some View {
-        List {
-            // Hero-Banner (scrollt mit weg) — echtes UI-Element, kein Bildplatzhalter.
-            HeroBanner()
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 6, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+        ScrollView {
+            // Selbstgebauter Container: klebende Kategorie-Header über pinnedViews,
+            // kein List-Verhalten. Hero + Chips scrollen als normale Zeilen mit weg.
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                // Hero-Banner (scrollt mit weg) — echtes UI-Element, kein Bildplatzhalter.
+                HeroBanner()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
 
-            // Kategorie-Chips (horizontal) — behalten das bisherige Filter-Verhalten.
-            categoryChips
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 6, trailing: 0))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                // Kategorie-Chips (horizontal) — behalten das bisherige Filter-Verhalten.
+                categoryChips
+                    .padding(.top, 4)
+                    .padding(.bottom, 6)
 
-            if filtered.isEmpty {
-                ContentUnavailableView(
-                    viewModel.recipes.isEmpty ? "Noch keine Rezepte" : "Nichts gefunden",
-                    systemImage: viewModel.recipes.isEmpty ? "frying.pan" : "magnifyingglass",
-                    description: Text(viewModel.recipes.isEmpty
-                        ? "Leg dein erstes Rezept an."
-                        : "Kein Rezept passt zu Suche und Filtern.")
-                )
-                .padding(.top, 40)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            } else {
-                ForEach(sections, id: \.category) { section in
-                    Section {
-                        ForEach(section.recipes) { recipe in
-                            NavigationLink { Rezepte(recipe: recipe) } label: {
-                                KidsRecipeRow(recipe: recipe,
-                                             isFavorite: prefs.isFavorite(recipe.name))
-                            }
-                            .buttonStyle(.plain)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .swipeActions(edge: .leading) {
-                                Button { prefs.toggleFavorite(recipe.name) } label: {
-                                    Label("Favorit",
-                                          systemImage: prefs.isFavorite(recipe.name)
-                                            ? "heart.slash" : "heart")
+                if filtered.isEmpty {
+                    ContentUnavailableView(
+                        viewModel.recipes.isEmpty ? "Noch keine Rezepte" : "Nichts gefunden",
+                        systemImage: viewModel.recipes.isEmpty ? "frying.pan" : "magnifyingglass",
+                        description: Text(viewModel.recipes.isEmpty
+                            ? "Leg dein erstes Rezept an."
+                            : "Kein Rezept passt zu Suche und Filtern.")
+                    )
+                    .padding(.top, 40)
+                } else {
+                    ForEach(sections, id: \.category) { section in
+                        Section {
+                            ForEach(section.recipes) { recipe in
+                                NavigationLink { Rezepte(recipe: recipe) } label: {
+                                    KidsRecipeRow(recipe: recipe)
                                 }
-                                .tint(.pink)
+                                .buttonStyle(.plain)
+                                // Herz-Knopf als eigener Tap-Bereich NEBEN dem Link
+                                // (Overlay statt verschachtelter Button → zuverlässig
+                                //  tippbar). Ersetzt den früheren List-Leading-Swipe.
+                                .overlay(alignment: .trailing) {
+                                    FavoriteButton(
+                                        isFavorite: prefs.isFavorite(recipe.name),
+                                        action: {
+                                            withAnimation(.spring(response: 0.3)) {
+                                                prefs.toggleFavorite(recipe.name)
+                                            }
+                                        }
+                                    )
+                                    .padding(.trailing, 22)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 5)
                             }
+                        } header: {
+                            CategoryHeader(category: section.category)
                         }
-                    } header: {
-                        CategoryHeader(category: section.category)
                     }
                 }
             }
+            .padding(.bottom, 16)
         }
-        .listStyle(.plain)
-        .listRowSpacing(0)
-        .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("KidsKitchen")
         .task { await viewModel.loadRecipes() }
@@ -205,8 +212,8 @@ private struct CategoryHeader: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Deckt beim Kleben (pinnedViews) den durchscrollenden Inhalt zu.
         .background(Color(.systemGroupedBackground))
-        .listRowInsets(EdgeInsets())
     }
 }
 
@@ -244,7 +251,6 @@ private struct KidsCatButton: View {
 
 private struct KidsRecipeRow: View {
     let recipe: Recipe
-    let isFavorite: Bool
 
     var body: some View {
         HStack(spacing: 14) {
@@ -269,12 +275,31 @@ private struct KidsRecipeRow: View {
                 .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            if isFavorite {
-                Image(systemName: "heart.fill").foregroundStyle(.pink).font(.caption)
-            }
+            // Platz für den Herz-Knopf, den die Home-Ebene als Overlay einblendet.
+            Color.clear.frame(width: 34, height: 34)
         }
         .padding(14)
         .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - Favoriten-Knopf
+/// Sichtbarer, direkt tippbarer Herz-Knopf auf der Rezeptkarte (ersetzt den früheren
+/// List-Leading-Swipe, der außerhalb von `List` nicht existiert).
+private struct FavoriteButton: View {
+    let isFavorite: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isFavorite ? "heart.fill" : "heart")
+                .font(.title3)
+                .foregroundStyle(.pink)
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten")
     }
 }
 
