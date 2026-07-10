@@ -76,19 +76,10 @@ struct Rezepte: View {
                 .disabled(addedToCart)
             }
 
-            // Zubereitung
-            Section("Zubereitung") {
-                ForEach(Array(recipe.instructions.enumerated()), id: \.element.id) { idx, step in
-                    HStack(alignment: .top, spacing: 12) {
-                        Text("\(idx + 1)")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .frame(width: 22, height: 22)
-                            .background(recipe.category?.color ?? .orange, in: Circle())
-                        Text(step.text).fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.vertical, 2)
-                }
+            // Zubereitung — Schritt für Schritt, mit kindersicherer Slide-Bestätigung
+            if !recipe.instructions.isEmpty {
+                CookingSteps(instructions: recipe.instructions,
+                             tint: recipe.category?.color ?? .orange)
             }
         }
         .navigationTitle(recipe.name)
@@ -129,6 +120,88 @@ struct Rezepte: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - CookingSteps
+/// Kochschritte einzeln abhakbar per Slide-Geste (kindersicher). Fortschritt lebt
+/// nur im Speicher pro Rezept-Durchlauf — keine neue Persistenz.
+private struct CookingSteps: View {
+    let instructions: [RecipeInstruction]
+    let tint: Color
+    @State private var doneCount = 0
+
+    private var allDone: Bool { doneCount >= instructions.count }
+
+    var body: some View {
+        Section {
+            // Fortschritt
+            VStack(alignment: .leading, spacing: 8) {
+                if allDone {
+                    Label("Alle Schritte geschafft! 🎉", systemImage: "party.popper.fill")
+                        .font(.system(.headline, design: .serif))
+                        .foregroundStyle(.green)
+                } else {
+                    Text("Schritt \(doneCount + 1) von \(instructions.count)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ProgressView(value: Double(doneCount), total: Double(instructions.count))
+                        .tint(tint)
+                }
+                if doneCount > 0 {
+                    Button {
+                        withAnimation(.smooth) { doneCount = 0 }
+                    } label: {
+                        Label("Von vorn", systemImage: "arrow.counterclockwise")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            .padding(.vertical, 4)
+
+            // Schritte
+            ForEach(Array(instructions.enumerated()), id: \.element.id) { idx, step in
+                stepRow(idx, step)
+            }
+        } header: {
+            Text("Zubereitung")
+        }
+    }
+
+    @ViewBuilder
+    private func stepRow(_ idx: Int, _ step: RecipeInstruction) -> some View {
+        let isDone = idx < doneCount
+        let isCurrent = idx == doneCount
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(isDone ? Color.green : (isCurrent ? tint : Color.gray.opacity(0.3)))
+                        .frame(width: 26, height: 26)
+                    if isDone {
+                        Image(systemName: "checkmark").font(.caption.bold())
+                    } else {
+                        Text("\(idx + 1)").font(.caption.bold())
+                    }
+                }
+                .foregroundStyle(.white)
+                Text(step.text)
+                    .foregroundStyle(isCurrent || isDone ? .primary : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if isCurrent {
+                SlideToConfirm(config: .init(idleText: "Schritt geschafft!", tint: tint)) {
+                    withAnimation(.smooth) { doneCount += 1 }
+                }
+                .id(idx) // frischer Slider für jeden Schritt
+                .padding(.top, 2)
+            }
+        }
+        .padding(.vertical, 4)
+        .opacity(idx > doneCount ? 0.55 : 1)
     }
 }
 
