@@ -28,6 +28,9 @@ final class Preferences {
     var favorites: Set<String> { didSet { defaults.set(Array(favorites), forKey: Keys.favorites) } }
     var shopping: [ShoppingItem] { didSet { saveShopping() } }
     var pantry: Set<String> { didSet { defaults.set(Array(pantry), forKey: Keys.pantry) } }
+    /// Vorrats-Mengen in Gramm je Zutatname (optional — nur wo der Nutzer eine
+    /// Menge gesetzt hat). Additiv zu `pantry` (in-Vorrat ja/nein).
+    var pantryAmounts: [String: Int] { didSet { savePantryAmounts() } }
     /// Wochenplan: Wochentag (rawValue) → Rezeptnamen.
     var plan: [String: [String]] { didSet { savePlan() } }
 
@@ -36,6 +39,7 @@ final class Preferences {
         static let diet = "pref.diet", excluded = "pref.excluded"
         static let favorites = "pref.favorites", shopping = "pref.shopping"
         static let pantry = "pref.pantry", plan = "pref.plan"
+        static let pantryAmounts = "pref.pantryAmounts"
     }
 
     private init() {
@@ -43,6 +47,12 @@ final class Preferences {
         excluded = Set(defaults.stringArray(forKey: Keys.excluded) ?? [])
         favorites = Set(defaults.stringArray(forKey: Keys.favorites) ?? [])
         pantry = Set(defaults.stringArray(forKey: Keys.pantry) ?? [])
+        if let data = defaults.data(forKey: Keys.pantryAmounts),
+           let amounts = try? JSONDecoder().decode([String: Int].self, from: data) {
+            pantryAmounts = amounts
+        } else {
+            pantryAmounts = [:]
+        }
         if let data = defaults.data(forKey: Keys.shopping),
            let items = try? JSONDecoder().decode([ShoppingItem].self, from: data) {
             shopping = items
@@ -96,8 +106,31 @@ final class Preferences {
     // MARK: Vorratsschrank
     func hasInPantry(_ ingredientName: String) -> Bool { pantry.contains(ingredientName) }
     func togglePantry(_ ingredientName: String) {
-        if pantry.contains(ingredientName) { pantry.remove(ingredientName) }
-        else { pantry.insert(ingredientName) }
+        if pantry.contains(ingredientName) {
+            pantry.remove(ingredientName)
+            // Nicht mehr im Vorrat → gespeicherte Menge verwerfen (ehrlich)
+            pantryAmounts[ingredientName] = nil
+        } else {
+            pantry.insert(ingredientName)
+        }
+    }
+
+    /// Gesetzte Vorrats-Menge in Gramm (nil = keine Menge hinterlegt).
+    func pantryAmount(_ ingredientName: String) -> Int? { pantryAmounts[ingredientName] }
+    /// Menge in Gramm setzen. 0 löscht die Menge; setzt implizit „im Vorrat".
+    func setPantryAmount(_ grams: Int, for ingredientName: String) {
+        if grams <= 0 {
+            pantryAmounts[ingredientName] = nil
+        } else {
+            pantryAmounts[ingredientName] = grams
+            pantry.insert(ingredientName)
+        }
+    }
+
+    private func savePantryAmounts() {
+        if let data = try? JSONEncoder().encode(pantryAmounts) {
+            defaults.set(data, forKey: Keys.pantryAmounts)
+        }
     }
     /// Wie viele Zutaten des Rezepts sind im Vorrat (0…1)?
     func pantryCoverage(_ recipe: Recipe) -> Double {
