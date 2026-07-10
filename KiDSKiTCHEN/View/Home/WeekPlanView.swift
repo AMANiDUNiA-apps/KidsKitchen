@@ -26,11 +26,23 @@ struct WeekPlanView: View {
     // (Auto-Scroll-zu-heute bewusst weggelassen: bei LazyVStack nicht verlässlich
     //  ohne Klick-Test verifizierbar, und der Streifen würde sonst desynchron wirken.)
     @State private var selectedDay: Weekday? = Weekday.allCases.first
+    /// Aktive Kategorie-Filter nach Mahlzeit-Art (leer = alles zeigen).
+    @State private var selectedCategories: [RecipeCategory] = []
     @Namespace private var stripNamespace
 
     var body: some View {
         VStack(spacing: 0) {
             weekStrip
+
+            // Kategorie-Filter (Mahlzeit-Art) — nur real geplante Kategorien, ab zwei.
+            if presentCategories.count > 1 {
+                CategoryFilterChips(categories: presentCategories) { selection in
+                    selectedCategories = selection
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .background(Color(.systemGroupedBackground))
+            }
 
             GeometryReader { geo in
                 ScrollView(.vertical) {
@@ -114,7 +126,7 @@ struct WeekPlanView: View {
                     .foregroundStyle(.white)
             }
             Spacer(minLength: 0)
-            let count = prefs.plannedRecipes(day).count
+            let count = visibleNames(day).count
             if count > 0 {
                 Text("\(count)")
                     .font(.caption.bold())
@@ -132,10 +144,10 @@ struct WeekPlanView: View {
     // MARK: Tages-Inhalt
     @ViewBuilder
     private func dayContent(_ day: Weekday) -> some View {
-        let names = prefs.plannedRecipes(day)
+        let names = visibleNames(day)
         KKCard {
             if names.isEmpty {
-                Text("nichts geplant")
+                Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
                     .foregroundStyle(.tertiary)
                     .font(.subheadline)
             } else {
@@ -181,6 +193,26 @@ struct WeekPlanView: View {
 
     private func recipe(named name: String) -> Recipe? {
         viewModel.recipes.first { $0.name == name }
+    }
+
+    /// Mahlzeit-Kategorien, die in der ganzen Woche tatsächlich geplant sind
+    /// (kanonische Reihenfolge) — nur real vorhandene Chips.
+    private var presentCategories: [RecipeCategory] {
+        let cats = Set(Weekday.allCases
+            .flatMap { prefs.plannedRecipes($0) }
+            .compactMap { recipe(named: $0)?.category })
+        return RecipeCategory.allCases.filter { cats.contains($0) }
+    }
+
+    /// Geplante Rezepte eines Tages nach aktivem Kategorie-Filter. Rezepte ohne
+    /// auflösbare Kategorie erscheinen nur, wenn kein Filter aktiv ist.
+    private func visibleNames(_ day: Weekday) -> [String] {
+        let names = prefs.plannedRecipes(day)
+        guard !selectedCategories.isEmpty else { return names }
+        return names.filter { name in
+            guard let category = recipe(named: name)?.category else { return false }
+            return selectedCategories.contains(category)
+        }
     }
 }
 

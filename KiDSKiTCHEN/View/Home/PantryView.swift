@@ -19,6 +19,8 @@ import SwiftUI
 struct PantryView: View {
     @State private var prefs: Preferences = .shared
     @State private var search = ""
+    /// Aktive Kategorie-Filter (leer = alles zeigen). Mehrfachauswahl.
+    @State private var selectedCategories: [IngredientCategory] = []
     /// Zutat, für die gerade die Menge bearbeitet wird (Mengen-Sheet).
     @State private var amountTarget: Ingredient?
 
@@ -30,6 +32,15 @@ struct PantryView: View {
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             return items.isEmpty ? nil : (category, items)
         }
+    }
+
+    /// Kategorien, die bei der aktuellen Suche tatsächlich vorkommen (echte Chips).
+    private var presentCategories: [IngredientCategory] { sections.map(\.category) }
+
+    /// Nach aktivem Kategorie-Filter eingeschränkte Abschnitte.
+    private var visibleSections: [(category: IngredientCategory, items: [Ingredient])] {
+        guard !selectedCategories.isEmpty else { return sections }
+        return sections.filter { selectedCategories.contains($0.category) }
     }
 
     var body: some View {
@@ -44,7 +55,16 @@ struct PantryView: View {
                 .padding(.horizontal, 4)
             }
 
-            ForEach(sections, id: \.category) { section in
+            // Kategorie-Filter — nur zeigen, wenn es mehr als eine Kategorie gibt.
+            if presentCategories.count > 1 {
+                CategoryFilterChips(categories: presentCategories) { selection in
+                    selectedCategories = selection
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 4)
+            }
+
+            ForEach(visibleSections, id: \.category) { section in
                 VStack(alignment: .leading, spacing: 8) {
                     KKSectionHeader(title: section.category.title,
                                     systemImage: section.category.symbolName,

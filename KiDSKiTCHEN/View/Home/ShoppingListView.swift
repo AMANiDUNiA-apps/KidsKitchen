@@ -44,9 +44,7 @@ struct ShoppingListView: View {
             } else {
                 // Kategorie-Filter — nur zeigen, wenn es mehr als eine Kategorie gibt
                 if presentCategories.count > 1 {
-                    ChipsView(tags: presentCategories) { category, isSelected in
-                        CategoryChip(category: category, isSelected: isSelected)
-                    } didChangeSelection: { selection in
+                    CategoryFilterChips(categories: presentCategories) { selection in
                         selectedCategories = selection
                     }
                     .padding(.horizontal, 4)
@@ -95,36 +93,6 @@ struct ShoppingListView: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - CategoryChip
-/// Kindgerechter Kategorie-Chip (Serifen, de_DE). Gefüllt in Kategoriefarbe,
-/// wenn ausgewählt — sichtbare Bedienung statt versteckter Filter.
-private struct CategoryChip: View {
-    let category: IngredientCategory
-    let isSelected: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: category.symbolName)
-                .font(.footnote)
-            Text(category.title)
-                .font(.system(.subheadline, design: .serif).weight(.medium))
-        }
-        .foregroundStyle(isSelected ? .white : category.color)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(
-            isSelected ? category.color : category.color.opacity(0.14),
-            in: .capsule
-        )
-        .overlay(
-            Capsule().strokeBorder(category.color.opacity(isSelected ? 0 : 0.35), lineWidth: 1)
-        )
-        .accessibilityLabel(category.title)
-        .accessibilityValue(isSelected ? "Filter aktiv" : "Filter aus")
-        .accessibilityAddTraits(.isButton)
     }
 }
 
