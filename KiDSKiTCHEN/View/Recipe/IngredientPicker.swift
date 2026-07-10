@@ -13,17 +13,24 @@ struct IngredientPicker: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            // UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — KKScroll + KKCard.
+            KKScroll {
                 ForEach(viewModel.pickerSections, id: \.category) { section in
-                    Section {
-                        ForEach(section.items) { ingredient in
-                            IngredientRow(rowViewModel: IngredientViewModel(ingredient: ingredient))
-                        }
-                    } header: {
+                    VStack(alignment: .leading, spacing: 8) {
                         IngredientSectionHeader(
                             category: section.category,
                             hasSelection: section.items.contains(where: \.isSelected)
                         )
+                        .padding(.horizontal, 4)
+                        KKCard {
+                            VStack(spacing: 0) {
+                                ForEach(Array(section.items.enumerated()), id: \.element.id) { index, ingredient in
+                                    if index > 0 { Divider() }
+                                    IngredientRow(rowViewModel: IngredientViewModel(ingredient: ingredient))
+                                        .padding(.vertical, 4)
+                                }
+                            }
+                        }
                     }
                 }
             }
