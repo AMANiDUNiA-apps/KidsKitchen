@@ -21,8 +21,20 @@ struct Rezepte: View {
     // Einmaliges Gesten-Tutorial beim ersten geöffneten Rezept.
     @AppStorage("kk.hasSeenGestureTutorial") private var hasSeenTutorial = false
     @State private var showTutorial = false
+    // Portionswahl (WheelPicker) — startet bei der Basis-Portionszahl des Rezepts.
+    @State private var servings: Int
+
+    init(recipe: Recipe) {
+        self.recipe = recipe
+        _servings = State(initialValue: max(recipe.servings, 1))
+    }
 
     private var tint: Color { recipe.category?.color ?? .orange }
+
+    /// Basis-Portionszahl (nie 0, um Division abzusichern).
+    private var baseServings: Int { max(recipe.servings, 1) }
+    /// Skalierungsfaktor der Zutatenmengen relativ zur Basis-Portionszahl.
+    private var scaleFactor: Double { Double(servings) / Double(baseServings) }
 
     private var saveConfig: AnimatedStateButton.Config {
         switch saveState {
@@ -104,11 +116,42 @@ struct Rezepte: View {
                 }
             }
 
-            // Nährwerte — visuell (nur zeigen, wenn hinterlegt oder verlässlich berechenbar)
+            // Portionen — Auswahl-Rad, skaliert die Zutatenmengen ehrlich mit.
+            Section("Portionen") {
+                WheelPickerView(range: 1...12, selectedValue: $servings,
+                                config: .init(activeTint: tint)) { value in
+                    VStack(spacing: 0) {
+                        Text("\(value)")
+                            .font(.system(.title, design: .serif).bold())
+                            .contentTransition(.numericText())
+                        Text(value == 1 ? "Portion" : "Portionen")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .accessibilityRepresentation {
+                    Stepper("Portionen: \(servings)", value: $servings, in: 1...12)
+                }
+                if servings != baseServings {
+                    Text("Mengen für \(servings) statt \(baseServings) Portionen angepasst.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .listRowSeparator(.hidden)
+                }
+            }
+
+            // Nährwerte — visuell (nur zeigen, wenn hinterlegt oder verlässlich berechenbar).
+            // Werte sind PRO PORTION und damit unabhängig von der gewählten Portionszahl —
+            // sie bleiben bewusst unverändert (keine erfundene Skalierung).
             if let nutrition = recipe.displayNutrition {
-                Section("Nährwerte") {
+                Section {
                     RecipeNutritionBars(nutrition: nutrition)
                         .listRowSeparator(.hidden)
+                } header: {
+                    Text("Nährwerte")
+                } footer: {
+                    Text("je Portion")
                 }
             }
 
@@ -118,11 +161,11 @@ struct Rezepte: View {
                     NavigationLink {
                         IngredientDetailView(ingredient: item.ingredient)
                     } label: {
-                        IngredientVisualRow(item: item)
+                        IngredientVisualRow(item: item, factor: scaleFactor)
                     }
                 }
                 Button {
-                    prefs.addToShopping(recipe)
+                    prefs.addToShopping(recipe, scaledBy: scaleFactor)
                     addedToCart = true
                     flashToast(.init(icon: "cart.badge.plus",
                                      title: "Zur Einkaufsliste hinzugefügt",
@@ -279,6 +322,7 @@ private struct CookingSteps: View {
 // MARK: - IngredientVisualRow
 private struct IngredientVisualRow: View {
     let item: RecipeIngredient
+    var factor: Double = 1
 
     var body: some View {
         HStack(spacing: 12) {
@@ -293,9 +337,10 @@ private struct IngredientVisualRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.ingredient.name)
                     .font(.system(.body, design: .serif))
-                Text(item.formatted)
+                Text(item.formatted(scaledBy: factor))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
             }
             Spacer()
         }

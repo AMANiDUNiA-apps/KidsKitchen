@@ -77,9 +77,9 @@ final class Preferences {
     }
 
     // MARK: Einkaufsliste
-    func addToShopping(_ recipe: Recipe) {
+    func addToShopping(_ recipe: Recipe, scaledBy factor: Double = 1) {
         for item in recipe.ingredients {
-            let text = item.formatted
+            let text = factor == 1 ? item.formatted : item.formatted(scaledBy: factor)
             if !shopping.contains(where: { $0.text == text }) {
                 shopping.append(ShoppingItem(text: text))
             }

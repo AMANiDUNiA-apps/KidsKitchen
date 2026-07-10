@@ -32,6 +32,29 @@ struct RecipeIngredient: Identifiable {
         "\(amount.formatted(.number.precision(.fractionLength(0...3)))) \(unit.rawValue) \(ingredient.name)"
     }
 
+    // MARK: Portions-Skalierung
+    /// Menge mal Faktor, kindgerecht gerundet — Einheit bleibt unangetastet.
+    /// (Gramm/ml auf 5er ab 20, Löffel/Stück/Bund in halben Schritten usw.)
+    func scaledAmount(by factor: Double) -> Double {
+        let raw = amount * factor
+        switch unit {
+        case .gram, .milliliter:
+            return raw >= 20 ? (raw / 5).rounded() * 5 : raw.rounded()
+        case .kilogram, .liter:
+            return (raw * 10).rounded() / 10
+        case .piece, .tablespoon, .teaspoon, .bunch:
+            return (raw * 2).rounded() / 2
+        case .pinch:
+            return max(1, raw.rounded())
+        }
+    }
+
+    /// Formatierte, skalierte Menge (z. B. „375 g Vollkornmehl" bei 1,5-fachen Portionen).
+    func formatted(scaledBy factor: Double) -> String {
+        let value = scaledAmount(by: factor)
+        return "\(value.formatted(.number.precision(.fractionLength(0...1)))) \(unit.rawValue) \(ingredient.name)"
+    }
+
     // MARK: - Mocks
     static let example1: [RecipeIngredient] = [
         RecipeIngredient(ingredient: Ingredient(name: "Haferflocken", category: .cereals), amount: 100, unit: .gram),
