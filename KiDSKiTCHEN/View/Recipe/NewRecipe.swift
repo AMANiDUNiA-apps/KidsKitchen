@@ -42,59 +42,89 @@ struct NewRecipe: View {
     }
 
     var body: some View {
-        Form {
+        // UI-Bauweise (Jay 10.7.): selbstgebautes Formular statt `Form`/`List` —
+        // KKScroll + KKSection tragen die Eingabefelder. Entfernen als sichtbarer
+        // Lösch-Knopf (KKDeleteButton) statt Swipe (Jay 11.7., Herz-Knopf-Referenz).
+        KKScroll {
             // MARK: Basis
-            Section("Rezept") {
+            KKSection(title: "Rezept", systemImage: "square.and.pencil") {
                 TextField("Name", text: $newRecipe.name)
+                    .textFieldStyle(.roundedBorder)
                 TextField("Beschreibung", text: $newRecipe.details, axis: .vertical)
                     .lineLimit(2...4)
-                Picker("Kategorie", selection: $newRecipe.category) {
-                    Text("—").tag(RecipeCategory?.none)
-                    ForEach(RecipeCategory.allCases) { category in
-                        Label(category.rawValue, systemImage: category.symbolName)
-                            .tag(RecipeCategory?.some(category))
+                    .textFieldStyle(.roundedBorder)
+                Divider()
+                HStack {
+                    Text("Kategorie")
+                    Spacer(minLength: 8)
+                    Picker("Kategorie", selection: $newRecipe.category) {
+                        Text("—").tag(RecipeCategory?.none)
+                        ForEach(RecipeCategory.allCases) { category in
+                            Label(category.rawValue, systemImage: category.symbolName)
+                                .tag(RecipeCategory?.some(category))
+                        }
                     }
+                    .labelsHidden()
                 }
+                Divider()
                 Stepper("Portionen: \(newRecipe.servings)", value: $newRecipe.servings, in: 1...20)
             }
 
             // MARK: Zutaten
-            Section {
-                ForEach(viewModel.recipeIngredients) { recipeIngredient in
-                    Text(recipeIngredient.formatted)
-                        .swipeActions {
-                            Button("Entfernen", systemImage: "trash", role: .destructive) {
-                                viewModel.removeRecipeIngredient(recipeIngredient: recipeIngredient)
+            KKSection(title: "Zutaten", systemImage: "basket") {
+                if viewModel.recipeIngredients.isEmpty {
+                    Text("Noch keine Zutaten gewählt.")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(viewModel.recipeIngredients.enumerated()), id: \.element.id) { index, recipeIngredient in
+                            if index > 0 { Divider() }
+                            HStack {
+                                Text(recipeIngredient.formatted)
+                                Spacer(minLength: 8)
+                                KKDeleteButton(accessibilityLabel: "\(recipeIngredient.formatted) entfernen") {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        viewModel.removeRecipeIngredient(recipeIngredient: recipeIngredient)
+                                    }
+                                }
                             }
+                            .padding(.vertical, 4)
                         }
+                    }
                 }
                 Button("Zutaten auswählen", systemImage: "basket") {
                     viewModel.showRecipeIngredients()
                 }
-            } header: {
-                Text("Zutaten")
+                .padding(.top, 4)
             }
 
             // MARK: Zubereitung
-            Section("Zubereitung") {
-                ForEach(viewModel.recipeInstructions.enumerated(), id: \.element.id) { index, instruction in
-                    Button {
-                        viewModel.editRecipeInstruction(instruction: instruction)
-                    } label: {
-                        HStack(alignment: .top) {
-                            Text("\(index + 1).")
-                                .foregroundStyle(.secondary)
-                            Text(instruction.text)
+            KKSection(title: "Zubereitung", systemImage: "list.number") {
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.recipeInstructions.enumerated()), id: \.element.id) { index, instruction in
+                        if index > 0 { Divider() }
+                        HStack(alignment: .top, spacing: 8) {
+                            Button {
+                                viewModel.editRecipeInstruction(instruction: instruction)
+                            } label: {
+                                HStack(alignment: .top) {
+                                    Text("\(index + 1).")
+                                        .foregroundStyle(.secondary)
+                                    Text(instruction.text)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                            KKDeleteButton(accessibilityLabel: "Schritt \(index + 1) löschen") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    viewModel.recipeInstruction = instruction
+                                    viewModel.removeRecipeInstruction()
+                                }
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions {
-                        Button("Löschen", systemImage: "trash", role: .destructive) {
-                            viewModel.recipeInstruction = instruction
-                            viewModel.removeRecipeInstruction()
-                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 HStack {
@@ -103,6 +133,7 @@ struct NewRecipe: View {
                         text: $viewModel.instructionsTextField,
                         axis: .vertical
                     )
+                    .textFieldStyle(.roundedBorder)
                     Button(
                         viewModel.isEditingInstruction ? "Übernehmen" : "Hinzufügen",
                         systemImage: viewModel.isEditingInstruction ? "checkmark.circle.fill" : "plus.circle.fill"
@@ -110,8 +141,10 @@ struct NewRecipe: View {
                         viewModel.addRecipeInstruction()
                     }
                     .labelStyle(.iconOnly)
+                    .font(.title2)
                     .disabled(viewModel.instructionsTextField.isEmpty)
                 }
+                .padding(.top, 4)
             }
         }
         .navigationTitle(newRecipe.name.isEmpty ? "Neues Rezept" : newRecipe.name)
