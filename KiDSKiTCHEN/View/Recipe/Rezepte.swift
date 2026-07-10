@@ -15,6 +15,9 @@ struct Rezepte: View {
     @State private var prefs: Preferences = .shared
     @State private var addedToCart = false
     @State private var saveState: SaveState = .idle
+    @State private var toastConfig = InlineToastConfig(icon: "checkmark", title: "", tint: .green)
+    @State private var showToast = false
+    @State private var toastTask: Task<Void, Never>?
 
     private var saveConfig: AnimatedStateButton.Config {
         switch saveState {
@@ -33,6 +36,18 @@ struct Rezepte: View {
                   foregroundColor: .white,
                   background: .green,
                   symbolImage: "checkmark.circle.fill")
+        }
+    }
+
+    /// Zeigt einen Inline-Toast und blendet ihn nach kurzer Zeit wieder aus.
+    private func flashToast(_ config: InlineToastConfig) {
+        toastTask?.cancel()
+        toastConfig = config
+        withAnimation(.snappy) { showToast = true }
+        toastTask = Task {
+            try? await Task.sleep(for: .seconds(2.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy) { showToast = false }
         }
     }
 
@@ -104,6 +119,10 @@ struct Rezepte: View {
                 Button {
                     prefs.addToShopping(recipe)
                     addedToCart = true
+                    flashToast(.init(icon: "cart.badge.plus",
+                                     title: "Zur Einkaufsliste hinzugefügt",
+                                     subTitle: "^[\(recipe.ingredients.count) Zutat](inflect: true)",
+                                     tint: .green))
                 } label: {
                     Label(addedToCart ? "Auf der Einkaufsliste" : "Auf die Einkaufsliste",
                           systemImage: addedToCart ? "checkmark.circle.fill" : "cart.badge.plus")
@@ -117,6 +136,7 @@ struct Rezepte: View {
                              tint: recipe.category?.color ?? .orange)
             }
         }
+        .inlineToast(config: toastConfig, isPresented: showToast)
         .navigationTitle(recipe.name)
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -128,7 +148,13 @@ struct Rezepte: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     ForEach(Weekday.allCases) { day in
-                        Button(day.rawValue) { prefs.addToPlan(recipe.name, day: day) }
+                        Button(day.rawValue) {
+                            prefs.addToPlan(recipe.name, day: day)
+                            flashToast(.init(icon: "calendar.badge.plus",
+                                             title: "Zum Wochenplan hinzugefügt",
+                                             subTitle: day.rawValue,
+                                             tint: .orange))
+                        }
                     }
                 } label: {
                     Label("Zum Wochenplan", systemImage: "calendar.badge.plus")
