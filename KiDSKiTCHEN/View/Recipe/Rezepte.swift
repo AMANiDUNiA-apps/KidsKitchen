@@ -89,6 +89,19 @@ struct Rezepte: View {
 
     var body: some View {
         KKScroll {
+            // Großer Titel im Inhalt (Serifen, kindgerecht, mehrzeilig erlaubt).
+            // Beim Container-Umbau (W4) landete der Name nur noch in der — dort
+            // abgeschnittenen — Navigationsleiste; hier kommt er sichtbar zurück.
+            // Die Navigationsleiste bleibt bewusst inline/klein (s. .navigationBarTitleDisplayMode).
+            Text(recipe.name)
+                .font(.system(.largeTitle, design: .serif).weight(.bold))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true) // mehrzeilig statt abgeschnitten
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+
             // Beschreibung — lange API-Texte klappen mit „mehr anzeigen" auf.
             if !recipe.details.isEmpty {
                 KKCard {
@@ -212,7 +225,7 @@ struct Rezepte: View {
             }
         }
         .navigationTitle(recipe.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline) // Titel steht jetzt groß im Inhalt; Bar bleibt klein
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
