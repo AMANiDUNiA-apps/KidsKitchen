@@ -12,6 +12,11 @@
 //  selbst; die Rezepte sitzen in eigenen KKCard/Row-Karten. Favorisieren früher per
 //  Leading-Swipe (List-only) → jetzt sichtbarer Herz-Knopf auf der Karte.
 //
+//  Weiterbau 7, Teil A: Pull-to-Search — am oberen Rand ein Stück nach unten ziehen
+//  blendet ein Blur-Overlay mit fokussiertem Suchfeld ein (Kavsoft „PullToSearch",
+//  s. KKPullToSearch). Es treibt dieselbe ECHTE Suche wie das Nav-Suchfeld
+//  (`.searchable` bleibt als Fallback); Treffer laufen durch den eigenen Container.
+//
 
 import SwiftUI
 
@@ -24,6 +29,14 @@ struct Home: View {
     @State private var pantryOnly = false
     @State private var kidsCat: RecipeCategory? = nil
     @State private var weekCarouselIndex = 0
+
+    // Pull-to-Search (Teil A): Scroll-Offset der Liste + Fokus des Overlay-Suchfelds.
+    // `searchExpanded` ist zugleich Fokus-Flag und „Suche offen"-Zustand (Kavsoft-Muster).
+    @State private var pullOffsetY: CGFloat = 0
+    @FocusState private var searchExpanded: Bool
+
+    /// 0…1: wie weit die Liste über den oberen Rand hinaus gezogen ist (Blur-Vorschau).
+    private var pullSearchProgress: CGFloat { max(min(pullOffsetY / 100, 1), 0) }
 
     /// True im normalen Stöber-Zustand (keine Suche/Filter aktiv) — nur dann zeigt
     /// Home das Wochen-Karussell, damit es das gefilterte Blättern nicht überlagert.
@@ -135,7 +148,21 @@ struct Home: View {
                 }
             }
             .padding(.bottom, 16)
+            // Beim Tippen im Overlay bleibt die Liste ruhig stehen (schiebt nicht mit).
+            .offset(y: searchExpanded ? -pullOffsetY : 0)
+            // Scroll-Offset der Wurzel messen — treibt Blur-Vorschau + Auslöseschwelle.
+            .onGeometryChange(for: CGFloat.self) {
+                $0.frame(in: .scrollView(axis: .vertical)).minY
+            } action: { pullOffsetY = $0 }
         }
+        .overlay { pullSearchOverlay }
+        // Weit genug gezogen (oder mit Schwung nach unten geworfen) → Suche öffnen.
+        .scrollTargetBehavior(OnScrollEnd { dy in
+            if pullOffsetY > 100 || (-dy > 1.5 && pullOffsetY > 0) {
+                searchExpanded = true
+            }
+        })
+        .animation(.interpolatingSpring(duration: 0.25), value: searchExpanded)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("KidsKitchen")
         .kkTransparentNavBar()
@@ -185,6 +212,95 @@ struct Home: View {
             }
             .frame(maxWidth: .infinity)
             .accessibilityHidden(true)
+        }
+    }
+
+    // MARK: Pull-to-Search-Overlay (Teil A)
+    /// Blur-Schicht über der Liste. Beim Ziehen zeigt sie sich anteilig (Vorschau),
+    /// bei geöffneter Suche voll — dann trägt sie das fokussierte Suchfeld samt
+    /// Treffern im eigenen Container (kein `List`).
+    private var pullSearchOverlay: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .ignoresSafeArea()
+            .overlay {
+                expandedSearch
+                    .opacity(searchExpanded ? 1 : 0)
+                    .offset(y: searchExpanded ? 0 : 60)
+                    .allowsHitTesting(searchExpanded)
+            }
+            .opacity(searchExpanded ? 1 : pullSearchProgress)
+            // Im eingeklappten Zustand nie Berührungen abfangen (Liste bleibt bedienbar).
+            .allowsHitTesting(searchExpanded)
+    }
+
+    private func collapseSearch() {
+        searchExpanded = false
+        search = ""   // zurück in den vollen Stöber-Zustand
+    }
+
+    private var expandedSearch: some View {
+        VStack(spacing: 12) {
+            // Suchkopf: Feld + „Fertig". Das Feld treibt dasselbe `search` wie das Nav-Feld.
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Rezept suchen", text: $search)
+                        .focused($searchExpanded)
+                        .submitLabel(.search)
+                        .autocorrectionDisabled()
+                    if !search.isEmpty {
+                        Button {
+                            search = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Suche leeren")
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.background, in: RoundedRectangle(cornerRadius: 14))
+
+                Button("Fertig") { collapseSearch() }
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            // Treffer im eigenen Container (KKCard-Zeilen) — bewusst KEIN `List`.
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    if search.isEmpty {
+                        ContentUnavailableView(
+                            "Wonach suchst du?",
+                            systemImage: "sparkle.magnifyingglass",
+                            description: Text("Tipp den Namen eines Rezepts ein.")
+                        )
+                        .padding(.top, 40)
+                    } else if filtered.isEmpty {
+                        ContentUnavailableView(
+                            "Nichts gefunden",
+                            systemImage: "magnifyingglass",
+                            description: Text("Kein Rezept passt zu \(search).")
+                        )
+                        .padding(.top, 40)
+                    } else {
+                        ForEach(filtered) { recipe in
+                            NavigationLink { Rezepte(recipe: recipe) } label: {
+                                KidsRecipeRow(recipe: recipe)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
