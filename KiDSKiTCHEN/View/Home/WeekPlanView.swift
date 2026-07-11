@@ -195,31 +195,78 @@ struct WeekPlanView: View {
     // MARK: Zeile
     @ViewBuilder
     private func planRow(name: String, day: Weekday) -> some View {
-        HStack(spacing: 8) {
-            if let recipe = recipe(named: name) {
-                NavigationLink { Rezepte(recipe: recipe) } label: {
-                    HStack {
-                        Text(name).font(.system(.body, design: .serif))
-                            .foregroundStyle(.primary)
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.bold())
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
+        let resolved = recipe(named: name)
+        let cooked = prefs.isCooked(day, name)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                // Gekocht-Knopf (Teil B): bucht die Zutaten vom Vorrat ab.
+                if let recipe = resolved {
+                    cookButton(recipe: recipe, day: day, cooked: cooked)
                 }
-                .buttonStyle(.plain)
-            } else {
-                Text(name).foregroundStyle(.secondary)
-                Spacer(minLength: 8)
+
+                if let recipe = resolved {
+                    NavigationLink { Rezepte(recipe: recipe) } label: {
+                        HStack {
+                            Text(name).font(.system(.body, design: .serif))
+                                .strikethrough(cooked)
+                                .foregroundStyle(cooked ? .secondary : .primary)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.bold())
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(name).foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                }
+                KKDeleteButton(accessibilityLabel: "\(name) aus \(day.rawValue) entfernen") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        prefs.removeFromPlan(name, day: day)
+                    }
+                }
             }
-            KKDeleteButton(accessibilityLabel: "\(name) aus \(day.rawValue) entfernen") {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    prefs.removeFromPlan(name, day: day)
+
+            // Ehrlicher Hinweis, wenn beim Kochen Zutaten nicht im Vorrat waren.
+            if cooked, let recipe = resolved {
+                let missing = prefs.cookMissingNames(day, recipe: recipe)
+                if !missing.isEmpty {
+                    Label(missing.count == 1
+                          ? "\(missing[0]) war nicht im Vorrat"
+                          : "\(missing.count) Zutaten waren nicht im Vorrat",
+                          systemImage: "exclamationmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 42)
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    /// Runder Gekocht-Umschalter — leerer Kreis → grüner Haken mit kleinem Bounce
+    /// (W7-D-Muster, Reduce-Motion-sicher).
+    private func cookButton(recipe: Recipe, day: Weekday, cooked: Bool) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.25)) {
+                if cooked { prefs.unmarkCooked(day, recipe: recipe) }
+                else { prefs.markCooked(day, recipe: recipe) }
+            }
+        } label: {
+            Image(systemName: cooked ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(cooked ? .green : .secondary)
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, value: reduceMotion ? false : cooked)
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(recipe.name) gekocht")
+        .accessibilityValue(cooked ? "gekocht, Vorrat abgebucht" : "noch nicht gekocht")
+        .accessibilityHint(cooked ? "Zum Zurücknehmen tippen" : "Zum Abhaken tippen — die Zutaten werden vom Vorrat abgebucht")
     }
 
     private func recipe(named name: String) -> Recipe? {
