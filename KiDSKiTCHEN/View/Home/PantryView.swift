@@ -113,6 +113,7 @@ private struct PantryTile: View {
     let inStock: Bool
     let amount: Int?
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -147,13 +148,16 @@ private struct PantryTile: View {
                         .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
                 }
 
-                if inStock {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.green)
-                        .padding(8)
-                        .transition(.scale.combined(with: .opacity))
-                }
+                // Immer vorhanden, nur ein-/ausgeblendet — so löst der Wechsel
+                // inStock=true den Symbol-Bounce zuverlässig aus (Teil D, „NewSymbolEffect").
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.green)
+                    .padding(8)
+                    .opacity(inStock ? 1 : 0)
+                    .scaleEffect(inStock ? 1 : 0.5)
+                    .symbolEffect(.bounce, value: reduceMotion ? false : inStock)
+                    .animation(.spring(response: 0.3), value: inStock)
             }
         }
         .buttonStyle(.plain)

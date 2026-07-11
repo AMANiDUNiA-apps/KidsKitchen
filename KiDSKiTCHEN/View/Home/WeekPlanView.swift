@@ -35,6 +35,7 @@ struct WeekPlanView: View {
     /// Aktive Kategorie-Filter nach Mahlzeit-Art (leer = alles zeigen).
     @State private var selectedCategories: [RecipeCategory] = []
     @Namespace private var stripNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -180,6 +181,11 @@ struct WeekPlanView: View {
                     ForEach(Array(names.enumerated()), id: \.element) { index, name in
                         if index > 0 { Divider() }
                         planRow(name: name, day: day)
+                            // Neu zugeordnetes Rezept (Teil B/„+"-Sheet) ploppt sanft
+                            // hinein (Teil D). Reduce Motion → nur Einblenden.
+                            .transition(reduceMotion
+                                        ? .opacity
+                                        : .scale(scale: 0.85).combined(with: .opacity))
                     }
                 }
             }

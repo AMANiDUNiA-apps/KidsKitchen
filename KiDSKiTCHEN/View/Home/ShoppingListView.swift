@@ -18,6 +18,7 @@ struct ShoppingListView: View {
     @State private var prefs: Preferences = .shared
     /// Aktive Kategorie-Filter (leer = alles zeigen). Mehrfachauswahl.
     @State private var selectedCategories: [IngredientCategory] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Kategorien, die in der Liste tatsächlich vorkommen — in kanonischer
     /// Reihenfolge (echte Einkaufslisten-Kategorien).
@@ -62,6 +63,10 @@ struct ShoppingListView: View {
                                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                                         .font(.title3)
                                         .foregroundStyle(item.done ? .green : .secondary)
+                                        // Abhaken-Feedback (Teil D): weiches Kreis→Haken-
+                                        // Wechseln + kleiner Bounce, aus/ein je Reduce Motion.
+                                        .contentTransition(.symbolEffect(.replace))
+                                        .symbolEffect(.bounce, value: reduceMotion ? false : item.done)
                                     Text(item.text)
                                         .strikethrough(item.done)
                                         .foregroundStyle(item.done ? .secondary : .primary)
