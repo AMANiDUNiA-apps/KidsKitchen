@@ -70,12 +70,12 @@ struct IngredientRow: View {
     }
 
     private var amountField: some View {
-        // Skalierende Breite hält Menge/Einheit über alle Zeilen bündig
-        TextField("Menge", value: $rowViewModel.amount, format: .number)
-            .keyboardType(.decimalPad)
+        // Zahlen-only (Ziffern + de_DE-Komma) via KKNumberField/RestrictedTF —
+        // filtert ungültige Zeichen (Einfügen/Hardware-Tastatur) hart heraus.
+        // Skalierende Breite hält Menge/Einheit über alle Zeilen bündig.
+        KKNumberField(value: $rowViewModel.amount)
             .frame(width: amountWidth)
             .textFieldStyle(.roundedBorder)
-            .multilineTextAlignment(.trailing)
     }
 
     private var unitPicker: some View {
