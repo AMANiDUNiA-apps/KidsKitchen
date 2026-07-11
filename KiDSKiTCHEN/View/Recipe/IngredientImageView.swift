@@ -46,8 +46,12 @@ struct IngredientImageView: View {
     var size: CGFloat
 
     var body: some View {
+        // Auflösung über die Match-Schicht (exakt → Alias → Fuzzy → FoundationModels),
+        // lazy gecacht im Mapping-Store. Für die sauber benannten Seed-Zutaten ist das
+        // exakt derselbe Treffer wie zuvor; zusätzlich greifen Plural/Synonyme/Fuzzy.
+        let asset = IngredientImageMapping.shared.assetKey(for: ingredient.name)
         Group {
-            if let asset = ingredient.imageAssetName {
+            if let asset {
                 Image(asset)
                     .resizable()
                     .scaledToFit()
