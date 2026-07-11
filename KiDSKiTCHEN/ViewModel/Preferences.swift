@@ -21,6 +21,24 @@ struct ShoppingItem: Identifiable, Codable, Hashable {
     /// aus dem Text abgeleitet.
     var category: IngredientCategory?
 
+    // MARK: Vorschlags-Felder (Weiterbau 8, Teil A)
+    /// Automatisch aus dem Wochenplan-Bedarf erzeugt? Hand-Einträge bleiben `false`
+    /// und werden von der Bedarf-Rechnung NIE angefasst (kein stilles Überschreiben).
+    var suggested: Bool = false
+    /// Herkunft des Vorschlags, z. B. „für Mittwoch: Bananen-Pfannkuchen".
+    var origin: String?
+    /// Struktur-Daten zum Zurückbuchen in den Vorrat beim Abhaken (nur gesetzt,
+    /// wenn die Einheit zur kanonischen Zutat-Einheit passt — sonst keine Menge).
+    var ingredientName: String?
+    var amount: Int?
+    var unit: IngredientUnit?
+    /// Wurde die Menge schon in den Vorrat gebucht? Verhindert Doppel-Buchung beim
+    /// Ab-/Anhaken (symmetrisch: abhaken bucht ein, wieder aufhaken bucht aus).
+    var booked: Bool = false
+
+    /// Bucht dieser Posten beim Abhaken eine Menge in den Vorrat? (strukturierter Vorschlag)
+    var booksIntoPantry: Bool { ingredientName != nil && amount != nil && unit != nil }
+
     /// Echte Kategorie für Filter/Anzeige — leitet fehlende Werte aus dem Text ab.
     var resolvedCategory: IngredientCategory {
         if let category { return category }
@@ -28,6 +46,36 @@ struct ShoppingItem: Identifiable, Codable, Hashable {
             return match.category
         }
         return .other
+    }
+
+    // MARK: Codable (rückwärtskompatibel — Alt-Posten haben die neuen Schlüssel nicht)
+    enum CodingKeys: String, CodingKey {
+        case id, text, done, category
+        case suggested, origin, ingredientName, amount, unit, booked
+    }
+
+    init(id: UUID = UUID(), text: String, done: Bool = false,
+         category: IngredientCategory? = nil, suggested: Bool = false,
+         origin: String? = nil, ingredientName: String? = nil,
+         amount: Int? = nil, unit: IngredientUnit? = nil, booked: Bool = false) {
+        self.id = id; self.text = text; self.done = done; self.category = category
+        self.suggested = suggested; self.origin = origin
+        self.ingredientName = ingredientName; self.amount = amount
+        self.unit = unit; self.booked = booked
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        text = try c.decode(String.self, forKey: .text)
+        done = try c.decodeIfPresent(Bool.self, forKey: .done) ?? false
+        category = try c.decodeIfPresent(IngredientCategory.self, forKey: .category)
+        suggested = try c.decodeIfPresent(Bool.self, forKey: .suggested) ?? false
+        origin = try c.decodeIfPresent(String.self, forKey: .origin)
+        ingredientName = try c.decodeIfPresent(String.self, forKey: .ingredientName)
+        amount = try c.decodeIfPresent(Int.self, forKey: .amount)
+        unit = try c.decodeIfPresent(IngredientUnit.self, forKey: .unit)
+        booked = try c.decodeIfPresent(Bool.self, forKey: .booked) ?? false
     }
 }
 
@@ -175,6 +223,104 @@ final class Preferences {
     private func savePlan() {
         if let data = try? JSONEncoder().encode(plan) {
             defaults.set(data, forKey: Keys.plan)
+        }
+    }
+}
+
+// MARK: - Vorrats-Kreislauf (Weiterbau 8)
+extension Preferences {
+
+    // MARK: Teil A — Bedarf-Rechnung Wochenplan → Einkauf
+    /// Rechnet den Zutatenbedarf ALLER geplanten (noch nicht gekochten) Rezepte gegen
+    /// den Vorrat. Aggregiert je Zutat über die ganze Woche. Kein Umrechnen: passt die
+    /// Rezept-Einheit nicht zur kanonischen Einheit, wird nur Vorhandensein geprüft.
+    func weekPlanShortfalls(recipes: [Recipe]) -> [PantryShortfall] {
+        struct Agg { var needed = 0; var numeric = true; var origins: [String] = [] }
+        var byName: [String: Agg] = [:]
+        var order: [String] = []
+
+        for day in Weekday.allCases {
+            for recipeName in plannedRecipes(day) {
+                guard let recipe = recipes.first(where: { $0.name == recipeName }) else { continue }
+                let origin = "\(day.rawValue): \(recipe.name)"
+                for ri in recipe.ingredients {
+                    let name = ri.ingredient.name
+                    if byName[name] == nil { byName[name] = Agg(); order.append(name) }
+                    byName[name]?.origins.append(origin)
+                    if ri.unit == Ingredient.canonicalUnit(for: name) {
+                        byName[name]?.needed += Int(ri.amount.rounded(.up))
+                    } else {
+                        // Einheit passt nicht → keine Mengen-Zahl, nur Vorhandensein.
+                        byName[name]?.numeric = false
+                    }
+                }
+            }
+        }
+
+        return order.compactMap { name in
+            guard let agg = byName[name] else { return nil }
+            return PantryShortfall(
+                ingredientName: name,
+                category: Ingredient.category(for: name),
+                unit: Ingredient.canonicalUnit(for: name),
+                needed: agg.needed,
+                have: pantryAmount(name) ?? 0,
+                numeric: agg.numeric,
+                origins: agg.origins
+            )
+        }
+    }
+
+    /// Erneuert die Vorschlags-Posten auf der Einkaufsliste aus dem aktuellen Bedarf.
+    /// NUR eigene, noch offene Vorschläge werden ersetzt — Hand-Einträge und bereits
+    /// abgehakte Posten bleiben unangetastet. Gibt die Anzahl neuer Vorschläge zurück.
+    @discardableResult
+    func refreshShoppingSuggestions(recipes: [Recipe]) -> Int {
+        shopping.removeAll { $0.suggested && !$0.done }
+        let shortfalls = weekPlanShortfalls(recipes: recipes).filter(\.isShort)
+        var added = 0
+        for s in shortfalls {
+            let canBook = s.numeric && s.missing > 0
+            shopping.append(ShoppingItem(
+                text: s.shoppingText,
+                category: s.category,
+                suggested: true,
+                origin: s.originText,
+                ingredientName: canBook ? s.ingredientName : nil,
+                amount: canBook ? s.missing : nil,
+                unit: canBook ? s.unit : nil
+            ))
+            added += 1
+        }
+        return added
+    }
+
+    /// Wie viele offene Bedarfs-Posten stünden gerade an (für Badge/Knopf-Text)?
+    func shortfallCount(recipes: [Recipe]) -> Int {
+        weekPlanShortfalls(recipes: recipes).filter(\.isShort).count
+    }
+
+    // MARK: Ab-/Anhaken auf der Einkaufsliste (bucht strukturierte Vorschläge in den Vorrat)
+    /// Setzt den Erledigt-Status eines Postens und bucht — falls es ein strukturierter
+    /// Vorschlag ist — die Menge symmetrisch in den Vorrat ein bzw. wieder aus.
+    func setShoppingDone(_ id: UUID, done: Bool) {
+        guard let idx = shopping.firstIndex(where: { $0.id == id }) else { return }
+        shopping[idx].done = done
+
+        var item = shopping[idx]
+        guard item.booksIntoPantry, let name = item.ingredientName,
+              let amount = item.amount, let unit = item.unit,
+              unit == Ingredient.canonicalUnit(for: name) else { return }
+
+        if done && !item.booked {
+            setPantryAmount((pantryAmount(name) ?? 0) + amount, for: name)
+            item.booked = true
+            shopping[idx] = item
+        } else if !done && item.booked {
+            let newValue = (pantryAmount(name) ?? 0) - amount
+            setPantryAmount(max(0, newValue), for: name)
+            item.booked = false
+            shopping[idx] = item
         }
     }
 }
