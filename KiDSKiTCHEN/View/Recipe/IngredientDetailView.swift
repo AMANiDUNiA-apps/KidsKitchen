@@ -63,9 +63,8 @@ struct IngredientDetailView: View {
                 Circle()
                     .fill(ingredient.category.color.opacity(0.15))
                     .frame(width: 54, height: 54)
-                Image(systemName: ingredient.category.symbolName)
-                    .font(.title)
-                    .foregroundStyle(ingredient.category.color)
+                // Foto der Zutat (Alpha) im getönten Kreis; Fallback = Kategorie-Symbol.
+                IngredientImageView(ingredient: ingredient, size: 46)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(ingredient.name).font(.title3.bold())

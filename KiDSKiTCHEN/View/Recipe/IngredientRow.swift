@@ -60,8 +60,8 @@ struct IngredientRow: View {
     // MARK: - Bausteine
     private var nameLabel: some View {
         HStack {
-            rowViewModel.ingredient.category.image
-                .foregroundStyle(rowViewModel.ingredient.category.color)
+            // Zutat-Foto (Alpha) mit Kategorie-Symbol als Fallback (Bilder-Einbau 11.7.).
+            IngredientImageView(ingredient: rowViewModel.ingredient, size: 28)
                 .accessibilityHidden(true)
             // Name weicht als Erster (truncation), damit Menge/Einheit Platz behalten
             Text(rowViewModel.ingredientName)
