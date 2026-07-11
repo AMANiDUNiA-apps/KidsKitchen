@@ -59,13 +59,9 @@ struct IngredientDetailView: View {
     // MARK: Header
     private var header: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(ingredient.category.color.opacity(0.15))
-                    .frame(width: 54, height: 54)
-                // Foto der Zutat (Alpha) im getönten Kreis; Fallback = Kategorie-Symbol.
-                IngredientImageView(ingredient: ingredient, size: 46)
-            }
+            // Foto der Zutat freistehend (Alpha), ohne farbigen Kreis-Hintergrund
+            // (Jay 11.7.: PNGs stehen frei, deutlich größer). Fallback = Kategorie-Symbol.
+            IngredientImageView(ingredient: ingredient, size: 64)
             VStack(alignment: .leading, spacing: 4) {
                 Text(ingredient.name).font(.title3.bold())
                 HStack(spacing: 6) {
