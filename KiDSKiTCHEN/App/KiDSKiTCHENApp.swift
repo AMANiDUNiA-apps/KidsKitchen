@@ -9,16 +9,6 @@ import SwiftUI
 
 @main
 struct KiDSKiTCHENApp: App {
-    // Nav-Leiste transparent (Jay 11.7.): Inhalt läuft unter der Leiste durch,
-    // kein Material/Hintergrund — gilt global für alle NavigationStacks.
-    init() {
-        let transparent = UINavigationBarAppearance()
-        transparent.configureWithTransparentBackground()
-        UINavigationBar.appearance().standardAppearance = transparent
-        UINavigationBar.appearance().scrollEdgeAppearance = transparent
-        UINavigationBar.appearance().compactAppearance = transparent
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()

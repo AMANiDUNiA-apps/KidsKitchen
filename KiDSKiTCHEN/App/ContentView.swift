@@ -67,6 +67,7 @@ private struct MoreView: View {
             .padding(.top, 8)
         }
         .navigationTitle("Mehr")
+        .kkTransparentNavBar()
     }
 
     private func navCard<Destination: View>(

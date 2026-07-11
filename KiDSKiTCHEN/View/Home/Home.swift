@@ -138,6 +138,7 @@ struct Home: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("KidsKitchen")
+        .kkTransparentNavBar()
         .task { await viewModel.loadRecipes() }
         .searchable(text: $search, prompt: "Rezept suchen")
         .toolbar {

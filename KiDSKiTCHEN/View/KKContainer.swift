@@ -130,6 +130,17 @@ struct KKScroll<Content: View>: View {
     }
 }
 
+// MARK: - Transparente Navigationsleiste
+extension View {
+    /// Durchsichtige Navigationsleiste (Jay 11.7.): kein Balken-Hintergrund, der
+    /// Inhalt läuft beim Scrollen sichtbar unter Zurück-Knopf & Co. durch.
+    /// Muss pro View gesetzt werden — der globale UIKit-Appearance-Weg griff
+    /// auf iOS 26 nicht (Gerätetest 11.7.).
+    func kkTransparentNavBar() -> some View {
+        toolbarBackground(.hidden, for: .navigationBar)
+    }
+}
+
 #Preview {
     KKScroll {
         KKSection(title: "Info", systemImage: "info.circle", tint: .orange) {

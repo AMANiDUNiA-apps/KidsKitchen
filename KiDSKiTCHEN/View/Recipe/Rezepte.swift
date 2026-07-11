@@ -224,8 +224,12 @@ struct Rezepte: View {
                 }
             }
         }
-        .navigationTitle(recipe.name)
-        .navigationBarTitleDisplayMode(.inline) // Titel steht jetzt groß im Inhalt; Bar bleibt klein
+        // Kein Leisten-Titel mehr: der große Serifen-Titel steht im Inhalt (W6 Teil A),
+        // die durchsichtige Leiste zeigt nur noch Zurück-Knopf + Aktionen — sonst
+        // stünde der Name doppelt da (Gerätetest-Bild 11.7.).
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .kkTransparentNavBar()
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle

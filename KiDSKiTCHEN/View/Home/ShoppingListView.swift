@@ -86,6 +86,7 @@ struct ShoppingListView: View {
             }
         }
         .navigationTitle("Einkaufsliste")
+        .kkTransparentNavBar()
         .toolbar {
             if prefs.shopping.contains(where: \.done) {
                 ToolbarItem(placement: .primaryAction) {

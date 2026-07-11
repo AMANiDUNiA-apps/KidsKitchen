@@ -69,6 +69,7 @@ struct WeekPlanView: View {
             }
         }
         .navigationTitle("Wochenplan")
+        .kkTransparentNavBar()
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy(duration: 0.25), value: selectedDay)
     }
