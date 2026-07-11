@@ -402,4 +402,25 @@ extension Preferences {
             return (deducted[name] ?? 0) < need ? name : nil
         }
     }
+
+    // MARK: Teil C — „Was kann ich heute kochen?" (reines Set-Matching, kein LLM)
+    /// Rezepte, für die höchstens `maxMissing` Zutaten fehlen — sortiert nach
+    /// Fehl-Anzahl (alles da zuerst), bei Gleichstand alphabetisch. Deterministisch
+    /// und offline: eine Zutat gilt als da, wenn ihr Name im Vorrat steht.
+    func cookableSuggestions(from recipes: [Recipe], maxMissing: Int = 2) -> [CookableMatch] {
+        recipes
+            .filter { !$0.ingredients.isEmpty }
+            .map { recipe in
+                CookableMatch(
+                    recipe: recipe,
+                    missing: recipe.ingredients.filter { !pantry.contains($0.ingredient.name) }
+                )
+            }
+            .filter { $0.missingCount <= maxMissing }
+            .sorted { lhs, rhs in
+                lhs.missingCount != rhs.missingCount
+                    ? lhs.missingCount < rhs.missingCount
+                    : lhs.recipe.name.localizedStandardCompare(rhs.recipe.name) == .orderedAscending
+            }
+    }
 }

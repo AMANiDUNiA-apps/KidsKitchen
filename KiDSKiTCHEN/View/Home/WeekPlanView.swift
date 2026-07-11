@@ -27,6 +27,8 @@ struct WeekPlanView: View {
     @State private var viewModel: RecipeListViewModel = .shared
     /// Tag, dem gerade ein Rezept zugeordnet wird (Hinzufügen-Sheet, Teil B).
     @State private var addTarget: Weekday?
+    /// Tag, für den gerade Koch-Vorschläge aus dem Vorrat gezeigt werden (Teil C).
+    @State private var cookTarget: Weekday?
     // Startet oben am Wochenanfang (Montag) — der Streifen spiegelt so von Anfang an
     // die echte Scrollposition. „Heute" bleibt über Badge + Punkt klar markiert.
     // (Auto-Scroll-zu-heute bewusst weggelassen: bei LazyVStack nicht verlässlich
@@ -84,6 +86,10 @@ struct WeekPlanView: View {
                 AddRecipeToDaySheet(day: day)
             }
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $cookTarget) { day in
+            CookableSuggestionsView(day: day)
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -173,9 +179,24 @@ struct WeekPlanView: View {
         let names = visibleNames(day)
         KKCard {
             if names.isEmpty {
-                Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
-                    .foregroundStyle(.tertiary)
-                    .font(.subheadline)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
+                        .foregroundStyle(.tertiary)
+                        .font(.subheadline)
+                    // Einstieg „Was kann ich kochen?" (Teil C) — nur an wirklich
+                    // leeren Tagen, nicht wenn nur der Filter leert.
+                    if selectedCategories.isEmpty {
+                        Button {
+                            cookTarget = day
+                        } label: {
+                            Label("Was kann ich kochen?", systemImage: "sparkles")
+                                .font(.system(.subheadline, design: .serif).weight(.medium))
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen, und ordnet sie \(day.rawValue) zu")
+                    }
+                }
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(names.enumerated()), id: \.element) { index, name in

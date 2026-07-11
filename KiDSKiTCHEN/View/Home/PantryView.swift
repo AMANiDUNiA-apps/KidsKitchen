@@ -23,6 +23,8 @@ struct PantryView: View {
     @State private var selectedCategories: [IngredientCategory] = []
     /// Zutat, für die gerade die Menge bearbeitet wird (Mengen-Sheet).
     @State private var amountTarget: Ingredient?
+    /// Koch-Vorschläge aus dem Vorrat anzeigen (Teil C).
+    @State private var showCookable = false
 
     private var sections: [(category: IngredientCategory, items: [Ingredient])] {
         IngredientCategory.allCases.compactMap { category in
@@ -53,6 +55,27 @@ struct PantryView: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 4)
+
+                // Einstieg „Was kann ich kochen?" (Teil C) — Vorschläge aus dem Vorrat.
+                Button {
+                    showCookable = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles").font(.title3).foregroundStyle(.orange)
+                        Text("Was kann ich kochen?")
+                            .font(.system(.subheadline, design: .serif).weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.bold()).foregroundStyle(.orange)
+                    }
+                    .padding(14)
+                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+                .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen")
             }
 
             // Kategorie-Filter — nur zeigen, wenn es mehr als eine Kategorie gibt.
@@ -100,6 +123,10 @@ struct PantryView: View {
         .sheet(item: $amountTarget) { ingredient in
             PantryAmountSheet(ingredient: ingredient, prefs: prefs)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showCookable) {
+            CookableSuggestionsView()
+                .presentationDragIndicator(.visible)
         }
     }
 }
