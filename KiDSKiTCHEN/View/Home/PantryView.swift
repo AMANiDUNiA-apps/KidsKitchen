@@ -146,10 +146,8 @@ private struct PantryTile: View {
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 8) {
-                    // Bild-Slot (Platzhalter bis zum PNG): Kategorie-Symbol.
-                    Image(systemName: ingredient.category.symbolName)
-                        .font(.system(size: 34))
-                        .foregroundStyle(ingredient.category.color)
+                    // Bild-Slot: fotorealistisches Zutat-PNG (Alpha), Fallback = Kategorie-Symbol.
+                    IngredientImageView(ingredient: ingredient, size: 56)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     Text(ingredient.name)
                         .font(.system(.subheadline, design: .serif).weight(.medium))
@@ -220,9 +218,7 @@ private struct PantryAmountSheet: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 6) {
-                Image(systemName: ingredient.category.symbolName)
-                    .font(.system(size: 40))
-                    .foregroundStyle(ingredient.category.color)
+                IngredientImageView(ingredient: ingredient, size: 64)
                 Text(ingredient.name)
                     .font(.system(.title2, design: .serif).weight(.semibold))
             }
