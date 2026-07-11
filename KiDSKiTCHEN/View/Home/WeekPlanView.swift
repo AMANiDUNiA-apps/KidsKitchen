@@ -15,12 +15,18 @@
 //  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`. Entfernen als
 //  sichtbarer Lösch-Knopf (Jay 11.7., Herz-Knopf-Referenz).
 //
+//  Weiterbau 7, Teil B: „+" im Tages-Header öffnet ein inhaltshohes Sheet
+//  (Kavsoft „DynamicHeightSheet", s. KKDynamicSheet), um dem Tag ein echtes Rezept
+//  zuzuordnen (prefs.addToPlan) — kompakt statt Vollbild.
+//
 
 import SwiftUI
 
 struct WeekPlanView: View {
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
+    /// Tag, dem gerade ein Rezept zugeordnet wird (Hinzufügen-Sheet, Teil B).
+    @State private var addTarget: Weekday?
     // Startet oben am Wochenanfang (Montag) — der Streifen spiegelt so von Anfang an
     // die echte Scrollposition. „Heute" bleibt über Badge + Punkt klar markiert.
     // (Auto-Scroll-zu-heute bewusst weggelassen: bei LazyVStack nicht verlässlich
@@ -72,6 +78,12 @@ struct WeekPlanView: View {
         .kkTransparentNavBar()
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy(duration: 0.25), value: selectedDay)
+        .sheet(item: $addTarget) { day in
+            KKDynamicSheet(animation: .snappy(duration: 0.3, extraBounce: 0)) {
+                AddRecipeToDaySheet(day: day)
+            }
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: Wochenstreifen (springt zum Tag, folgt der Scrollposition)
@@ -133,12 +145,24 @@ struct WeekPlanView: View {
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
+            // Rezept diesem Tag zuordnen (öffnet das inhaltshohe Sheet, Teil B).
+            Button {
+                addTarget = day
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Rezept zu \(day.rawValue) hinzufügen")
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Deckt beim Kleben den durchscrollenden Inhalt zu.
         .background(Color(.systemGroupedBackground))
+        // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
     }
 
@@ -214,6 +238,128 @@ struct WeekPlanView: View {
             guard let category = recipe(named: name)?.category else { return false }
             return selectedCategories.contains(category)
         }
+    }
+}
+
+// MARK: - AddRecipeToDaySheet (Teil B)
+/// Inhaltshoher Inhalt für das KKDynamicSheet: listet die echten Rezepte, die dem
+/// Tag noch NICHT zugeordnet sind, und ordnet das getippte Rezept zu (addToPlan).
+/// Eigener Container (KKCard-artige Zeilen), kein `List`. Die Liste ist auf den
+/// Inhalt gedeckelt — wenige Rezepte → niedriges Sheet, viele → scrollbar.
+private struct AddRecipeToDaySheet: View {
+    let day: Weekday
+    @State private var prefs: Preferences = .shared
+    @State private var viewModel: RecipeListViewModel = .shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var search = ""
+
+    /// Noch nicht für den Tag geplante Rezepte (optional nach Suche gefiltert).
+    private var candidates: [Recipe] {
+        let planned = Set(prefs.plannedRecipes(day))
+        return viewModel.recipes
+            .filter { !planned.contains($0.name) }
+            .filter { search.isEmpty || $0.name.localizedStandardContains(search) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Höhe des Treffer-Containers: bis zu 6 Zeilen sichtbar, darüber wird gescrollt.
+    private var listHeight: CGFloat { CGFloat(min(candidates.count, 6)) * 60 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Rezept hinzufügen")
+                        .font(.system(.title3, design: .serif).bold())
+                    Text(day.rawValue + (day == Weekday.today ? " · heute" : ""))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary, Color(.tertiarySystemFill))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Schließen")
+            }
+
+            // Suchfeld erst ab genug Rezepten (sonst unnötig).
+            if viewModel.recipes.count > 6 {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Rezept suchen", text: $search)
+                        .autocorrectionDisabled()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color(.secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            if candidates.isEmpty {
+                Text(search.isEmpty
+                     ? "Alle Rezepte sind für \(day.rawValue) schon eingeplant."
+                     : "Nichts gefunden.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 20)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(candidates) { recipe in
+                            Button {
+                                withAnimation(.snappy(duration: 0.2)) {
+                                    prefs.addToPlan(recipe.name, day: day)
+                                }
+                                dismiss()
+                            } label: {
+                                candidateRow(recipe)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(height: listHeight)
+                .scrollBounceBehavior(.basedOnSize)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func candidateRow(_ recipe: Recipe) -> some View {
+        let color = recipe.category?.color ?? .orange
+        return HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: recipe.category?.symbolName ?? "fork.knife")
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recipe.name)
+                    .font(.system(.body, design: .serif).weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if let cat = recipe.category {
+                    Text(cat.rawValue).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "plus.circle.fill")
+                .font(.title3)
+                .foregroundStyle(color)
+        }
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(recipe.name) zu \(day.rawValue) hinzufügen")
     }
 }
 
