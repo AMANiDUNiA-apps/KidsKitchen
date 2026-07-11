@@ -25,6 +25,20 @@ struct PantryView: View {
     @State private var amountTarget: Ingredient?
     /// Koch-Vorschläge aus dem Vorrat anzeigen (Teil C).
     @State private var showCookable = false
+    /// Gewähltes Ansicht-Layout (persistiert — Jays Wahl bleibt über App-Starts).
+    @AppStorage("pantryLayout") private var layoutRaw = PantryLayout.grid.rawValue
+    private var layout: PantryLayout { PantryLayout(rawValue: layoutRaw) ?? .grid }
+
+    /// Tap auf eine Zutat: im Vorrat → Menge bearbeiten, sonst schnell hinzufügen.
+    private func toggle(_ ingredient: Ingredient, inStock: Bool) {
+        if inStock {
+            amountTarget = ingredient
+        } else {
+            withAnimation(.snappy(duration: 0.2)) {
+                prefs.togglePantry(ingredient.name)
+            }
+        }
+    }
 
     private var sections: [(category: IngredientCategory, items: [Ingredient])] {
         IngredientCategory.allCases.compactMap { category in
@@ -94,31 +108,27 @@ struct PantryView: View {
                                     tint: section.category.color)
                         .padding(.horizontal, 4)
 
-                    KKCompositionalGrid {
-                        ForEach(section.items) { ingredient in
-                            let inStock = prefs.pantry.contains(ingredient.name)
-                            PantryTile(
-                                ingredient: ingredient,
-                                inStock: inStock,
-                                amount: prefs.pantryAmount(ingredient.name)
-                            ) {
-                                if inStock {
-                                    // Schon im Vorrat → Menge bearbeiten (oder entnehmen)
-                                    amountTarget = ingredient
-                                } else {
-                                    // Schnell hinzufügen (wie bisher)
-                                    withAnimation(.snappy(duration: 0.2)) {
-                                        prefs.togglePantry(ingredient.name)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    sectionItems(section.items)
                 }
             }
         }
         .navigationTitle("Vorratsschrank")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                // „Ansicht ändern" — schaltet reihum durch die Layouts (Jay testet
+                // am Gerät, welche Variante gewinnt). Aktuelles Layout im Label.
+                Button {
+                    withAnimation(.snappy) { layoutRaw = layout.next.rawValue }
+                } label: {
+                    Label(layout.title, systemImage: layout.symbol)
+                        .labelStyle(.titleAndIcon)
+                        .font(.footnote.weight(.semibold))
+                }
+                .accessibilityLabel("Ansicht ändern, aktuell \(layout.title)")
+                .accessibilityHint("Schaltet zur nächsten Ansicht der Zutaten")
+            }
+        }
         .searchable(text: $search, prompt: "Zutat suchen")
         .sheet(item: $amountTarget) { ingredient in
             PantryAmountSheet(ingredient: ingredient, prefs: prefs)
@@ -127,6 +137,66 @@ struct PantryView: View {
         .sheet(isPresented: $showCookable) {
             CookableSuggestionsView()
                 .presentationDragIndicator(.visible)
+        }
+    }
+
+    // MARK: - Layout-abhängige Zutaten-Darstellung
+    /// Rendert die Zutaten eines Abschnitts im aktuell gewählten Layout.
+    /// Alle Varianten teilen dieselbe Tap-Logik (Vorrat umschalten/Menge).
+    @ViewBuilder
+    private func sectionItems(_ items: [Ingredient]) -> some View {
+        switch layout {
+        case .grid:
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(items) { ingredient in
+                    let inStock = prefs.pantry.contains(ingredient.name)
+                    PantryTile(ingredient: ingredient, inStock: inStock,
+                               amount: prefs.pantryAmount(ingredient.name)) {
+                        toggle(ingredient, inStock: inStock)
+                    }
+                    .frame(height: 150)
+                }
+            }
+
+        case .cards:
+            VStack(spacing: 12) {
+                ForEach(items) { ingredient in
+                    let inStock = prefs.pantry.contains(ingredient.name)
+                    PantryBigCard(ingredient: ingredient, inStock: inStock,
+                                  amount: prefs.pantryAmount(ingredient.name)) {
+                        toggle(ingredient, inStock: inStock)
+                    }
+                }
+            }
+
+        case .list:
+            VStack(spacing: 4) {
+                ForEach(items) { ingredient in
+                    let inStock = prefs.pantry.contains(ingredient.name)
+                    PantryListRow(ingredient: ingredient, inStock: inStock,
+                                  amount: prefs.pantryAmount(ingredient.name)) {
+                        toggle(ingredient, inStock: inStock)
+                    }
+                }
+            }
+
+        case .gallery:
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(items) { ingredient in
+                        let inStock = prefs.pantry.contains(ingredient.name)
+                        PantryTile(ingredient: ingredient, inStock: inStock,
+                                   amount: prefs.pantryAmount(ingredient.name)) {
+                            toggle(ingredient, inStock: inStock)
+                        }
+                        .frame(width: 140, height: 150)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+            // Galerie darf über den Seitenrand scrollen — Rand-Padding aufheben.
+            .padding(.horizontal, -4)
         }
     }
 }
