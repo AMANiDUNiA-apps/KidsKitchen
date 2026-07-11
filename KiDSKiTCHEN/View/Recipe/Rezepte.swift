@@ -363,14 +363,10 @@ private struct IngredientVisualRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(item.ingredient.category.color.opacity(0.15))
-                    .frame(width: 40, height: 40)
-                Image(systemName: item.ingredient.category.symbolName)
-                    .font(.body)
-                    .foregroundStyle(item.ingredient.category.color)
-            }
+            // Echtes freigestelltes Zutat-Foto (Bilder-Einbau/Mapping 11.7.); ohne
+            // Treffer bleibt das getönte Kategorie-Symbol als Fallback (IngredientImageView).
+            IngredientImageView(ingredient: item.ingredient, size: 40)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.ingredient.name)
                     .font(.system(.body, design: .serif))
