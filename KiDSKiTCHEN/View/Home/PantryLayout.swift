@@ -57,10 +57,10 @@ struct PantryBigCard: View {
     let ingredient: Ingredient
     let inStock: Bool
     let amount: Int?
-    let action: () -> Void
+    let onSingle: () -> Void
+    let onDouble: () -> Void
 
     var body: some View {
-        Button(action: action) {
             HStack(spacing: 16) {
                 IngredientImageView(ingredient: ingredient, size: 84)
 
@@ -97,11 +97,11 @@ struct PantryBigCard: View {
                 RoundedRectangle(cornerRadius: 20)
                     .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
             }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(ingredient.name)
-        .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+            .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(ingredient.name)
+            .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+            .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
     }
 }
 
@@ -111,10 +111,10 @@ struct PantryListRow: View {
     let ingredient: Ingredient
     let inStock: Bool
     let amount: Int?
-    let action: () -> Void
+    let onSingle: () -> Void
+    let onDouble: () -> Void
 
     var body: some View {
-        Button(action: action) {
             HStack(spacing: 14) {
                 IngredientImageView(ingredient: ingredient, size: 48)
 
@@ -141,10 +141,10 @@ struct PantryListRow: View {
                 inStock ? ingredient.category.color.opacity(0.14) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 14)
             )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(ingredient.name)
-        .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+            .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(ingredient.name)
+            .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+            .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
     }
 }

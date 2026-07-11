@@ -9,15 +9,63 @@ import SwiftUI
 
 struct IngredientDetailView: View {
     let ingredient: Ingredient
-    @State private var depth: NutritionDepth = .mini
-
-    private var facts: NutritionFacts? { NutritionFacts.bls(for: ingredient.name) }
 
     var body: some View {
         // UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — KKScroll + KKSection.
         KKScroll {
             KKCard { header }
+            IngredientFactsSections(ingredient: ingredient)
+        }
+        .navigationTitle(ingredient.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
 
+    // MARK: Header
+    private var header: some View {
+        HStack(spacing: 14) {
+            // Foto der Zutat freistehend (Alpha), ohne farbigen Kreis-Hintergrund
+            // (Jay 11.7.: PNGs stehen frei, deutlich größer). Fallback = Kategorie-Symbol.
+            IngredientImageView(ingredient: ingredient, size: 64)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(ingredient.name).font(.title3.bold())
+                HStack(spacing: 6) {
+                    Text(ingredient.category.title)
+                        .foregroundStyle(ingredient.category.color)
+                    if let badge = dietBadge {
+                        Text(badge)
+                            .padding(.horizontal, 8).padding(.vertical, 2)
+                            .background(.green.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.green)
+                    }
+                }
+                .font(.caption)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var dietBadge: String? {
+        switch ingredient.category {
+        case .fruit, .vegetable, .cereals, .nuts, .herbs, .spices: "Vegan"
+        case .dairy: "Vegetarisch"
+        default: nil
+        }
+    }
+}
+
+// MARK: - IngredientFactsSections
+/// Nährwert-/„Gut zu wissen"-Sektionen einer Zutat (BLS je 100 g), mit
+/// umschaltbarer Detailtiefe. Aus IngredientDetailView herausgelöst, damit die
+/// Groß-Bild-Detailansicht im Vorratsschrank (PantryDetailView) dieselben Details
+/// zeigt — eine Quelle statt Duplikat.
+struct IngredientFactsSections: View {
+    let ingredient: Ingredient
+    @State private var depth: NutritionDepth = .mini
+
+    private var facts: NutritionFacts? { NutritionFacts.bls(for: ingredient.name) }
+
+    var body: some View {
+        Group {
             if let facts {
                 KKSection(title: "Nährwerte je 100 g", systemImage: "chart.bar") {
                     Picker("Detailtiefe", selection: $depth) {
@@ -51,41 +99,7 @@ struct IngredientDetailView: View {
                 .padding(.top, 40)
             }
         }
-        .navigationTitle(ingredient.name)
-        .navigationBarTitleDisplayMode(.inline)
         .animation(.spring(response: 0.3), value: depth)
-    }
-
-    // MARK: Header
-    private var header: some View {
-        HStack(spacing: 14) {
-            // Foto der Zutat freistehend (Alpha), ohne farbigen Kreis-Hintergrund
-            // (Jay 11.7.: PNGs stehen frei, deutlich größer). Fallback = Kategorie-Symbol.
-            IngredientImageView(ingredient: ingredient, size: 64)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(ingredient.name).font(.title3.bold())
-                HStack(spacing: 6) {
-                    Text(ingredient.category.title)
-                        .foregroundStyle(ingredient.category.color)
-                    if let badge = dietBadge {
-                        Text(badge)
-                            .padding(.horizontal, 8).padding(.vertical, 2)
-                            .background(.green.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.green)
-                    }
-                }
-                .font(.caption)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private var dietBadge: String? {
-        switch ingredient.category {
-        case .fruit, .vegetable, .cereals, .nuts, .herbs, .spices: "Vegan"
-        case .dairy: "Vegetarisch"
-        default: nil
-        }
     }
 }
 
