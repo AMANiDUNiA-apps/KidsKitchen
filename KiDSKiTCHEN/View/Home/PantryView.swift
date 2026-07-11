@@ -21,24 +21,24 @@ struct PantryView: View {
     @State private var search = ""
     /// Aktive Kategorie-Filter (leer = alles zeigen). Mehrfachauswahl.
     @State private var selectedCategories: [IngredientCategory] = []
-    /// Zutat, für die gerade die Menge bearbeitet wird (Mengen-Sheet).
+    /// Zutat, für die gerade die Menge bearbeitet wird (Mengen-Sheet, Einfach-Tap).
     @State private var amountTarget: Ingredient?
+    /// Zutat, deren Groß-Bild-/Detailansicht offen ist (Doppel-Tap).
+    @State private var detailTarget: Ingredient?
+    /// Quell-Namespace für die Zoom-Überblendung Kachel → Groß-Bild.
+    @Namespace private var zoomNS
     /// Koch-Vorschläge aus dem Vorrat anzeigen (Teil C).
     @State private var showCookable = false
     /// Gewähltes Ansicht-Layout (persistiert — Jays Wahl bleibt über App-Starts).
     @AppStorage("pantryLayout") private var layoutRaw = PantryLayout.grid.rawValue
     private var layout: PantryLayout { PantryLayout(rawValue: layoutRaw) ?? .grid }
 
-    /// Tap auf eine Zutat: im Vorrat → Menge bearbeiten, sonst schnell hinzufügen.
-    private func toggle(_ ingredient: Ingredient, inStock: Bool) {
-        if inStock {
-            amountTarget = ingredient
-        } else {
-            withAnimation(.snappy(duration: 0.2)) {
-                prefs.togglePantry(ingredient.name)
-            }
-        }
-    }
+    // Klick-Verhalten der Kacheln (vereinheitlicht, Jay 12.7.):
+    // 1× Tap → direkt die Mengen-Scala · 2× Tap → Groß-Bild mit Scala + Details.
+    // Beide Wege gelten für ALLE vier Layouts gleich. Hinzufügen läuft jetzt über
+    // die Scala („Sichern" legt implizit in den Vorrat), nicht mehr über 1× Tap.
+    private func openAmount(_ ingredient: Ingredient) { amountTarget = ingredient }
+    private func openDetail(_ ingredient: Ingredient) { detailTarget = ingredient }
 
     private var sections: [(category: IngredientCategory, items: [Ingredient])] {
         IngredientCategory.allCases.compactMap { category in
@@ -134,6 +134,9 @@ struct PantryView: View {
             PantryAmountSheet(ingredient: ingredient, prefs: prefs)
                 .presentationDetents([.medium])
         }
+        .fullScreenCover(item: $detailTarget) { ingredient in
+            PantryDetailView(ingredient: ingredient, prefs: prefs, namespace: zoomNS)
+        }
         .sheet(isPresented: $showCookable) {
             CookableSuggestionsView()
                 .presentationDragIndicator(.visible)
@@ -152,9 +155,10 @@ struct PantryView: View {
                 ForEach(items) { ingredient in
                     let inStock = prefs.pantry.contains(ingredient.name)
                     PantryTile(ingredient: ingredient, inStock: inStock,
-                               amount: prefs.pantryAmount(ingredient.name)) {
-                        toggle(ingredient, inStock: inStock)
-                    }
+                               amount: prefs.pantryAmount(ingredient.name),
+                               onSingle: { openAmount(ingredient) },
+                               onDouble: { openDetail(ingredient) })
+                    .matchedTransitionSource(id: ingredient.id, in: zoomNS)
                     .frame(height: 150)
                 }
             }
@@ -164,9 +168,10 @@ struct PantryView: View {
                 ForEach(items) { ingredient in
                     let inStock = prefs.pantry.contains(ingredient.name)
                     PantryBigCard(ingredient: ingredient, inStock: inStock,
-                                  amount: prefs.pantryAmount(ingredient.name)) {
-                        toggle(ingredient, inStock: inStock)
-                    }
+                                  amount: prefs.pantryAmount(ingredient.name),
+                                  onSingle: { openAmount(ingredient) },
+                                  onDouble: { openDetail(ingredient) })
+                    .matchedTransitionSource(id: ingredient.id, in: zoomNS)
                 }
             }
 
@@ -175,9 +180,10 @@ struct PantryView: View {
                 ForEach(items) { ingredient in
                     let inStock = prefs.pantry.contains(ingredient.name)
                     PantryListRow(ingredient: ingredient, inStock: inStock,
-                                  amount: prefs.pantryAmount(ingredient.name)) {
-                        toggle(ingredient, inStock: inStock)
-                    }
+                                  amount: prefs.pantryAmount(ingredient.name),
+                                  onSingle: { openAmount(ingredient) },
+                                  onDouble: { openDetail(ingredient) })
+                    .matchedTransitionSource(id: ingredient.id, in: zoomNS)
                 }
             }
 
@@ -187,9 +193,10 @@ struct PantryView: View {
                     ForEach(items) { ingredient in
                         let inStock = prefs.pantry.contains(ingredient.name)
                         PantryTile(ingredient: ingredient, inStock: inStock,
-                                   amount: prefs.pantryAmount(ingredient.name)) {
-                            toggle(ingredient, inStock: inStock)
-                        }
+                                   amount: prefs.pantryAmount(ingredient.name),
+                                   onSingle: { openAmount(ingredient) },
+                                   onDouble: { openDetail(ingredient) })
+                        .matchedTransitionSource(id: ingredient.id, in: zoomNS)
                         .frame(width: 140, height: 150)
                     }
                 }
@@ -209,11 +216,11 @@ private struct PantryTile: View {
     let ingredient: Ingredient
     let inStock: Bool
     let amount: Int?
-    let action: () -> Void
+    let onSingle: () -> Void
+    let onDouble: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 8) {
                     // Bild-Slot: fotorealistisches Zutat-PNG (Alpha), Fallback = Kategorie-Symbol.
@@ -254,11 +261,11 @@ private struct PantryTile: View {
                     .symbolEffect(.bounce, value: reduceMotion ? false : inStock)
                     .animation(.spring(response: 0.3), value: inStock)
             }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(ingredient.name)
-        .accessibilityValue(pantryValueDescription)
-        .accessibilityHint(inStock ? "Zum Bearbeiten der Menge tippen" : "Zum Hinzufügen tippen")
+            .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(ingredient.name)
+            .accessibilityValue(pantryValueDescription)
+            .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
     }
 
     private var pantryValueDescription: String {
@@ -268,16 +275,32 @@ private struct PantryTile: View {
     }
 }
 
-// MARK: - PantryAmountSheet
-/// Mengen-Eingabe für eine Vorrats-Zutat über den analogen Strich-Picker
-/// (Kavsoft `TickPicker`). Schreibt echte Werte in der KANONISCHEN Einheit der
-/// Zutat (g/ml/Stück …) in die Preferences — keine Umrechnung.
-private struct PantryAmountSheet: View {
+// MARK: - Kachel-Gesten (vereinheitlicht)
+extension View {
+    /// 1× Tap → Menge · 2× Tap → Detail. Der Doppel-Tap MUSS vor dem Einfach-Tap
+    /// stehen, sonst frisst der Einfach-Tap alles (SwiftUI-Gotcha). Eine kleine
+    /// systembedingte Auslöse-Verzögerung beim Einfach-Tap ist akzeptiert.
+    func pantryTapGestures(onSingle: @escaping () -> Void,
+                           onDouble: @escaping () -> Void) -> some View {
+        contentShape(Rectangle())
+            .onTapGesture(count: 2, perform: onDouble)
+            .onTapGesture(count: 1, perform: onSingle)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: "Details anzeigen", onDouble)
+    }
+}
+
+// MARK: - PantryAmountControls
+/// Wiederverwendbare Mengen-Scala: Wert-Anzeige + analoger Strich-Picker
+/// (Kavsoft `TickPicker`) + Buttons „Aus dem Vorrat"/„Sichern". Schreibt echte
+/// Werte in der KANONISCHEN Einheit der Zutat (g/ml/Stück …) — keine Umrechnung.
+/// Genutzt im Mengen-Sheet (Einfach-Tap) UND in der Detailansicht (Doppel-Tap).
+struct PantryAmountControls: View {
     let ingredient: Ingredient
     @Bindable var prefs: Preferences
-    @Environment(\.dismiss) private var dismiss
+    /// Nach „Sichern"/„Aus dem Vorrat" aufgerufen (Sheet/Cover schließen).
+    var onFinish: () -> Void = {}
 
-    /// Einheit der Zutat bestimmt Schrittweite, Höchstwert und Beschriftung.
     private var unit: IngredientUnit { ingredient.unit }
     private var step: Int { unit.pantryStep }
     private var maxTicks: Int { unit.pantryMaxValue / unit.pantryStep }
@@ -286,14 +309,7 @@ private struct PantryAmountSheet: View {
     private var value: Int { tick * step }
 
     var body: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 6) {
-                IngredientImageView(ingredient: ingredient, size: 64)
-                Text(ingredient.name)
-                    .font(.system(.title2, design: .serif).weight(.semibold))
-            }
-            .padding(.top, 24)
-
+        VStack(spacing: 20) {
             Text(unit.formattedAmount(value))
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .contentTransition(.numericText())
@@ -304,37 +320,135 @@ private struct PantryAmountSheet: View {
                 config: TickConfig(activeTint: ingredient.category.color),
                 selection: $tick
             )
-            .padding(.horizontal)
 
             HStack(spacing: 12) {
-                Button(role: .destructive) {
-                    // Entfernt aus dem Vorrat und verwirft die Menge (togglePantry)
-                    prefs.togglePantry(ingredient.name)
-                    dismiss()
-                } label: {
-                    Label("Aus dem Vorrat", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity)
+                // „Aus dem Vorrat" nur, wenn die Zutat wirklich im Vorrat ist —
+                // sonst würde togglePantry sie versehentlich HINZUFÜGEN.
+                if prefs.hasInPantry(ingredient.name) {
+                    Button(role: .destructive) {
+                        prefs.togglePantry(ingredient.name)
+                        onFinish()
+                    } label: {
+                        Label("Aus dem Vorrat", systemImage: "xmark.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
 
                 Button {
                     prefs.setPantryAmount(value, for: ingredient.name)
-                    dismiss()
+                    onFinish()
                 } label: {
                     Label("Sichern", systemImage: "checkmark")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
             }
-            .padding(.horizontal)
+        }
+        .task {
+            // Auf gespeicherten Wert vorpositionieren (auf Einheiten-Raster gerundet)
+            let saved = prefs.pantryAmount(ingredient.name) ?? 0
+            tick = min(max(Int((Double(saved) / Double(step)).rounded()), 0), maxTicks)
+        }
+    }
+}
+
+// MARK: - PantryAmountSheet (Einfach-Tap)
+/// Kompaktes Sheet mit der Mengen-Scala — Bild, Name, Scala.
+private struct PantryAmountSheet: View {
+    let ingredient: Ingredient
+    @Bindable var prefs: Preferences
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 6) {
+                IngredientImageView(ingredient: ingredient, size: 64)
+                Text(ingredient.name)
+                    .font(.system(.title2, design: .serif).weight(.semibold))
+            }
+            .padding(.top, 24)
+
+            PantryAmountControls(ingredient: ingredient, prefs: prefs) { dismiss() }
+                .padding(.horizontal)
 
             Spacer(minLength: 0)
         }
         .fontDesign(.serif)
-        .task {
-            // Auf gespeicherten Wert vorpositionieren (auf 10-g-Raster gerundet)
-            let saved = prefs.pantryAmount(ingredient.name) ?? 0
-            tick = min(max(Int((Double(saved) / Double(step)).rounded()), 0), maxTicks)
+    }
+}
+
+// MARK: - PantryDetailView (Doppel-Tap)
+/// Groß-Bild-Animation der Zutat mit integrierter Mengen-Scala UND weiteren
+/// Details (Kategorie/Badge + Nährwerte aus der IngredientDetailView-Schicht).
+/// Öffnet als Zoom-Überblendung aus der angetippten Kachel (`namespace`).
+private struct PantryDetailView: View {
+    let ingredient: Ingredient
+    @Bindable var prefs: Preferences
+    let namespace: Namespace.ID
+    @Environment(\.dismiss) private var dismiss
+    @State private var appeared = false
+
+    var body: some View {
+        NavigationStack {
+            KKScroll {
+                // Groß-Bild + Kopf (Kategorie/Badge)
+                KKCard {
+                    VStack(spacing: 12) {
+                        IngredientImageView(ingredient: ingredient, size: 200)
+                            .scaleEffect(appeared ? 1 : 0.6)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.75), value: appeared)
+
+                        Text(ingredient.name)
+                            .font(.system(.largeTitle, design: .serif).weight(.bold))
+                            .multilineTextAlignment(.center)
+
+                        HStack(spacing: 6) {
+                            Text(ingredient.category.title)
+                                .foregroundStyle(ingredient.category.color)
+                            if let badge = dietBadge {
+                                Text(badge)
+                                    .padding(.horizontal, 8).padding(.vertical, 2)
+                                    .background(.green.opacity(0.15), in: Capsule())
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Integrierte Mengen-Scala (gleiche Bedienung wie im Sheet)
+                KKSection(title: "Menge", systemImage: "ruler", tint: ingredient.category.color) {
+                    PantryAmountControls(ingredient: ingredient, prefs: prefs) { dismiss() }
+                }
+
+                // Weitere Details: Nährwerte + „Gut zu wissen"
+                IngredientFactsSections(ingredient: ingredient)
+            }
+            .navigationTitle(ingredient.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .fontDesign(.serif)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("Schließen")
+                }
+            }
+        }
+        .navigationTransition(.zoom(sourceID: ingredient.id, in: namespace))
+        .onAppear { appeared = true }
+    }
+
+    private var dietBadge: String? {
+        switch ingredient.category {
+        case .fruit, .vegetable, .cereals, .nuts, .herbs, .spices: "Vegan"
+        case .dairy: "Vegetarisch"
+        default: nil
         }
     }
 }
