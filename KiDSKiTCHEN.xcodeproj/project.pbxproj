@@ -86,11 +86,12 @@
 				};
 			};
 			buildConfigurationList = 878518662F12E061007A6B0C /* Build configuration list for PBXProject "KiDSKiTCHEN" */;
-			developmentRegion = en;
+			developmentRegion = de;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				de,
 			);
 			mainGroup = 878518622F12E061007A6B0C;
 			minimizedProjectReferenceProxies = 1;
