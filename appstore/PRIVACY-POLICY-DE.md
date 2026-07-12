@@ -1,10 +1,12 @@
 # Datenschutzerklärung — KidsKitchen (ENTWURF, braucht Jays Freigabe)
 
-> **Status:** Entwurf vom 2026-07-06, erstellt von Session mac-apps auf Basis des
-> tatsächlichen Code-Stands (V1 = komplett offline). Vor Veröffentlichung: Jays
-> Name/Impressum einsetzen, hosten (öffentliche URL ist Pflichtfeld in App Store
-> Connect) und rechtlich gegenlesen. Muss neu geprüft werden, falls die App später
-> eine Netzwerkanbindung (Supabase/Vapor) oder Zahlungsfunktionen bekommt.
+> **Status:** Entwurf vom 2026-07-06, Netzwerk-Abgleich 2026-07-12. V1 ist offline:
+> der ausgelieferte Build enthält keinen Server-Schlüssel, ein Offline-Guard im Code
+> wählt dann das lokale Seed-Repository und löst KEINEN Netz-Request aus. Die App
+> besitzt zwar eine (im Release deaktivierte) Rezept-Online-Anbindung — s. Abschnitt 4.
+> Vor Veröffentlichung: Jays Name/Impressum einsetzen, hosten (öffentliche URL ist
+> Pflichtfeld in App Store Connect) und rechtlich gegenlesen. Muss neu geprüft werden,
+> falls in einer späteren Version die Online-Anbindung (Supabase/Vapor) aktiviert wird.
 
 ---
 
@@ -34,7 +36,11 @@ Diese Daten werden nicht an uns oder Dritte übertragen und beim Löschen der
 App vollständig entfernt.
 
 **4. Internetverbindung**
-Die App stellt keine Verbindung zum Internet her. Es gibt keine Werbung, keine
+In dieser Version (V1) stellt die App keine Verbindung zum Internet her: Alle
+Rezepte und Zutaten sind fest in der App enthalten und werden lokal angezeigt.
+Die App enthält zwar Programmcode für eine spätere Online-Rezeptquelle, dieser
+ist in der ausgelieferten Version jedoch deaktiviert (es ist kein Server-Zugang
+hinterlegt, daher findet kein Abruf statt). Es gibt keine Werbung, keine
 Analyse-Dienste (Tracking) und keine Dienste von Drittanbietern.
 
 **5. Kinder**

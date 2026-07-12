@@ -25,8 +25,13 @@ class RecipeListViewModel {
     // MARK: - Repository (Datenquelle der Rezepte, injizierbar)
     private let recipeRepository: RecipeRepository
 
-    private init(recipeRepository: RecipeRepository = SupabaseRecipeRepository()) {
+    private init(recipeRepository: RecipeRepository? = nil) {
+        // Offline-Guard (V1): Ohne anon-Key (Release/Demo — Env-Vars greifen im Archive nie)
+        // wird das Seed-Repository gewählt, das KEINEN Netz-Request auslöst. Damit ist der
+        // ausgelieferte Build beweisbar offline (Datenschutz-Zusage Kinder-Kategorie: keine
+        // Geräte-/IP-Daten an Dritte). Mit gesetztem Key: echter Supabase-Abruf wie bisher.
         self.recipeRepository = recipeRepository
+            ?? (SupabaseSecrets.anonKey.isEmpty ? SeedRecipeRepository() : SupabaseRecipeRepository())
     }
 
     // MARK: - loadRecipes (echter API-Call übers Repository)
