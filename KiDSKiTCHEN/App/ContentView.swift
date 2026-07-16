@@ -5,9 +5,9 @@
 //  TabView-Navigation (bau/air 16.7.):
 //  Rezepte / Zutaten / Woche / Einkaufen / Mehr
 //
-//  NEU — Zutaten-Tab: Vorratsschrank als Haupt-Screen, Saisonkalender über
-//  Leading-Toolbar-Link erreichbar. Mehr: schlanker (ohne Vorrat + Saison).
-//  Tab-Struktur als Screenshot an Jay — vor dem weiteren Umbau abstimmen.
+//  Rezepte-Tab: Gespeicherte Rezepte über Trailing-Toolbar erreichbar.
+//  Zutaten-Tab: Saisonkalender (Leading) + Filter & Diät (Trailing).
+//  Mehr: nur noch Rezept-Import + Einführung.
 //
 
 import SwiftUI
@@ -19,7 +19,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            NavigationStack { Home() }
+            NavigationStack { RezepteTabRoot() }
                 .tabItem { Label("Rezepte", systemImage: "fork.knife") }
 
             NavigationStack { ZutatenTabRoot() }
@@ -49,8 +49,25 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Rezepte-Tab
+/// Home als Haupt-Screen; Gespeicherte Rezepte über den Trailing-Knopf erreichbar.
+private struct RezepteTabRoot: View {
+    var body: some View {
+        Home()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SavedRecipesView()) {
+                        Label("Gespeichert", systemImage: "arrow.down.circle")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Offline gespeicherte Rezepte")
+                }
+            }
+    }
+}
+
 // MARK: - Zutaten-Tab
-/// Vorratsschrank als Haupt-Screen; Saisonkalender über den Leading-Knopf erreichbar.
+/// Vorratsschrank als Haupt-Screen; Saisonkalender (Leading) + Filter & Diät (Trailing).
 private struct ZutatenTabRoot: View {
     var body: some View {
         PantryView()
@@ -62,11 +79,19 @@ private struct ZutatenTabRoot: View {
                     }
                     .accessibilityLabel("Saisonkalender")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: PreferencesView()) {
+                        Label("Filter & Diät", systemImage: "slider.horizontal.3")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Filter & Diät")
+                }
             }
     }
 }
 
-// MARK: - MoreView (schlanker — Vorrat + Saison jetzt im Zutaten-Tab)
+// MARK: - MoreView (schlank — Rezept-Import + Einführung)
+// Gespeichert → Rezepte-Tab · Filter & Diät → Zutaten-Tab
 // UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
@@ -74,12 +99,6 @@ private struct MoreView: View {
 
     var body: some View {
         KKScroll {
-            navCard("Offline gespeichert", symbol: "arrow.down.circle", tint: .orange) {
-                SavedRecipesView()
-            }
-            navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
-                PreferencesView()
-            }
             navCard("Rezept importieren", symbol: "sparkles", tint: .indigo) {
                 RecipeImportView()
             }
@@ -87,7 +106,7 @@ private struct MoreView: View {
             Button {
                 hasOnboarded = false
             } label: {
-                menuRow("Einführung nochmal ansehen", symbol: "sparkles", tint: .pink, showsChevron: false)
+                menuRow("Einführung nochmal ansehen", symbol: "wand.and.stars", tint: .pink, showsChevron: false)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)

@@ -11,6 +11,7 @@ import SwiftUI
 
 struct ThemeSettingsView: View {
     @State private var settings: ThemeSettings = .shared
+    @State private var prefs: Preferences = .shared
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
@@ -21,6 +22,7 @@ struct ThemeSettingsView: View {
             loopSection
             radiusSection
             transitionSection
+            parentalSection
         }
         .navigationTitle("Design")
         .navigationBarTitleDisplayMode(.large)
@@ -118,6 +120,16 @@ struct ThemeSettingsView: View {
             }
             .pickerStyle(.segmented)
             Text("Animation beim Einblenden der Zutaten-Kacheln in der Vorratsschrank-Übersicht.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: Eltern-Kontrolle
+    private var parentalSection: some View {
+        KKSection(title: "Eltern-Kontrolle", systemImage: "lock.shield") {
+            Toggle("Rezept-Import sperren", isOn: $prefs.kidsControlEnabled)
+                .tint(settings.theme.accent)
+            Text("Wenn aktiv, erscheint vor dem Rezept-Import eine Rechenaufgabe als Freigabehürde (Apple Kids-Category-Anforderung für Webzugriff).")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

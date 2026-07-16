@@ -83,6 +83,10 @@ final class RecipeImportViewModel {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let raw = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
+            guard isRecipePage(raw) else {
+                state = .error("Diese Seite scheint kein Rezept zu enthalten. Bitte eine Rezept-URL einfügen.")
+                return
+            }
             let text = stripHTML(raw).prefix(8000).description  // Kontextfenster schonen
             state = .extracting
             let extracted = try await extract(pageText: text)
@@ -90,6 +94,17 @@ final class RecipeImportViewModel {
         } catch {
             state = .error(error.localizedDescription)
         }
+    }
+
+    /// Einfache Heuristik: JSON-LD @type:Recipe oder mind. 3 Rezept-Schlüsselwörter.
+    private func isRecipePage(_ html: String) -> Bool {
+        let lower = html.lowercased()
+        if lower.contains("\"@type\":\"recipe\"") || lower.contains("\"@type\": \"recipe\"") {
+            return true
+        }
+        let keywords = ["zutaten", "ingredients", "zubereitungszeit", "preparation time",
+                        "rezept", "recipe", "kochzeit", "portionen", "servings", "zubereitung"]
+        return keywords.filter { lower.contains($0) }.count >= 3
     }
 
     private func extract(pageText: String) async throws -> ExtractedRecipe {
@@ -133,38 +148,49 @@ struct RecipeImportView: View {
     @State private var vm = RecipeImportViewModel()
     @State private var showSaveSheet = false
     @State private var settings: ThemeSettings = .shared
+    @State private var prefs: Preferences = .shared
+    @State private var gateUnlocked = false
+    @State private var challenge: ParentalGateChallenge = .generate()
 
     var body: some View {
         KKScroll {
-            if vm.modelUnavailable {
-                KKCard {
-                    Label(
-                        "Apple Intelligence ist auf diesem Gerät nicht verfügbar.",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            if prefs.kidsControlEnabled && !gateUnlocked {
+                ParentalGateOverlay(challenge: challenge, settings: settings) {
+                    gateUnlocked = true
+                } onFailed: {
+                    challenge = .generate()
                 }
-            }
-
-            KKSection(title: "Rezept-URL einfügen", systemImage: "link") {
-                TextField("https://www.chefkoch.de/rezepte/…", text: $vm.urlText)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-
-                Button {
-                    Task { await vm.startImport() }
-                } label: {
-                    Label("Rezept importieren", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
+            } else {
+                if vm.modelUnavailable {
+                    KKCard {
+                        Label(
+                            "Apple Intelligence ist auf diesem Gerät nicht verfügbar.",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(settings.theme.accent)
-                .disabled(!vm.canImport)
-            }
 
-            statusSection
+                KKSection(title: "Rezept-URL einfügen", systemImage: "link") {
+                    TextField("https://www.chefkoch.de/rezepte/…", text: $vm.urlText)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    Button {
+                        Task { await vm.startImport() }
+                    } label: {
+                        Label("Rezept importieren", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(settings.theme.accent)
+                    .disabled(!vm.canImport)
+                }
+
+                statusSection
+            }
         }
         .navigationTitle("Rezept importieren")
         .kkTransparentNavBar()
@@ -276,6 +302,82 @@ private extension ExtractedRecipe {
             servings:     max(1, servings),
             prepTime:     totalMinutes
         )
+    }
+}
+
+// MARK: - Parental Gate (Apple Kids-Category-Anforderung)
+// Freigabehürde vor dem Webzugriff: Rechenaufgabe, die nur Erwachsene sicher lösen können.
+struct ParentalGateChallenge {
+    let a: Int
+    let b: Int
+    var answer: Int { a + b }
+
+    static func generate() -> ParentalGateChallenge {
+        ParentalGateChallenge(a: Int.random(in: 23...67), b: Int.random(in: 23...67))
+    }
+}
+
+private struct ParentalGateOverlay: View {
+    let challenge: ParentalGateChallenge
+    let settings: ThemeSettings
+    let onSuccess: () -> Void
+    let onFailed: () -> Void
+
+    @State private var input = ""
+    @State private var showWrong = false
+
+    var body: some View {
+        KKCard {
+            VStack(spacing: 16) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(settings.theme.accent)
+
+                Text("Eltern-Freigabe")
+                    .font(.system(.title3, design: .serif).bold())
+
+                Text("Löse diese Aufgabe, um fortzufahren:")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Text("\(challenge.a) + \(challenge.b) = ?")
+                    .font(.system(.title, design: .rounded).bold())
+                    .foregroundStyle(settings.theme.accent)
+
+                TextField("Antwort", text: $input)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
+                    .font(.title2.bold())
+                    .padding(10)
+                    .background(Color.primary.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: settings.cardInnerRadius))
+
+                if showWrong {
+                    Text("Falsche Antwort – neue Aufgabe.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button {
+                    if let value = Int(input.trimmingCharacters(in: .whitespaces)),
+                       value == challenge.answer {
+                        onSuccess()
+                    } else {
+                        showWrong = true
+                        input = ""
+                        onFailed()
+                    }
+                } label: {
+                    Text("Entsperren")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.theme.accent)
+                .disabled(input.isEmpty)
+            }
+            .padding(.vertical, 8)
+        }
     }
 }
 

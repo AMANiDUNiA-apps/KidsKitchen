@@ -99,6 +99,8 @@ final class Preferences {
     /// Was beim Kochen je Mahlzeit tatsächlich vom Vorrat abgebucht wurde
     /// (mealKey → Zutatname → Menge). Erlaubt exaktes Rückbuchen beim Aufheben.
     var cookedDeductions: [String: [String: Int]] { didSet { saveCookedDeductions() } }
+    /// Eltern-Sperre: setzt eine Freigabehürde (Rechenaufgabe) vor Rezept-Import-URLs.
+    var kidsControlEnabled: Bool { didSet { defaults.set(kidsControlEnabled, forKey: Keys.kidsControl) } }
 
     private let defaults = UserDefaults.standard
     private enum Keys {
@@ -107,6 +109,7 @@ final class Preferences {
         static let pantry = "pref.pantry", plan = "pref.plan"
         static let pantryAmounts = "pref.pantryAmounts"
         static let cooked = "pref.cooked", cookedDeductions = "pref.cookedDeductions"
+        static let kidsControl = "pref.kidsControl"
     }
 
     private init() {
@@ -139,6 +142,7 @@ final class Preferences {
         } else {
             cookedDeductions = [:]
         }
+        kidsControlEnabled = defaults.bool(forKey: Keys.kidsControl)
     }
 
     // MARK: Favoriten
