@@ -8,17 +8,20 @@
 //  Bewusst schlicht gehalten — volle Gestaltungskontrolle, kein List-Verhalten.
 //
 //  Aufgabe 0 (16.7.): KKCard + KKScroll sind jetzt theme-aware (ThemeSettings.shared).
-//  KKAnimatedBackground liefert einen MeshGradient-Hintergrund (5×5 Punkte).
-//  Außenring (16 Punkte) ist immer fest — nur die 3×3 Innenpunkte driften sanft.
+//  KKAnimatedBackground liefert einen MeshGradient-Hintergrund (8×8 = 64 Punkte).
+//  Außenring (28 Punkte) ist immer fest — die 6×6 = 36 Innenpunkte driften mit
+//  zwei überlagerten Sinus-Komponenten (Drift > Gitterabstand → Überlappungen).
 //  Respektiert accessibilityReduceMotion, scenePhase und LoopSpeed == .off.
 //
 
 import SwiftUI
 
 // MARK: - KKAnimatedBackground
-/// MeshGradient-Hintergrund (5×5 = 25 Punkte). Außenring fest, 3×3 Innenpunkte
-/// driften langsam via sin/cos mit individuellem Phasen-Offset → organische Bewegung.
-/// Stoppt bei Reduce Motion, Hintergrund-App oder LoopSpeed == .off.
+/// MeshGradient-Hintergrund (8×8 = 64 Punkte). Außenring (28 Punkte) fest —
+/// die 6×6 = 36 Innenpunkte driften mit zwei überlagerten Sinus-Komponenten
+/// (irrrationales Frequenzverhältnis → quasi-periodisch). Drift-Amplitude 0,18
+/// überschreitet den Gitterabstand 1/7 ≈ 0,143 bewusst → Überlappungen erzeugen
+/// Falt- und Wirbelmuster. Stoppt bei Reduce Motion / Hintergrund / LoopSpeed .off.
 struct KKAnimatedBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -38,51 +41,65 @@ struct KKAnimatedBackground: View {
                 ? context.date.timeIntervalSinceReferenceDate / duration * 2 * .pi
                 : 0.0
             MeshGradient(
-                width: 5, height: 5,
+                width: 8, height: 8,
                 points: Self.meshPoints(t: t),
                 colors: colors
             )
         }
     }
 
-    /// 25 Farben (5×5, zeilenweise): Außenring = Theme-Hintergrundfarben,
-    /// Mitte = leichter Akzent-Hauch für Tiefe.
+    /// 64 Farben (8×8, zeilenweise).
+    /// Außenring: Hintergrundfarben alternierend (bleibt ruhig, weil Punkte fix).
+    /// 6×6 Inneres: 3×3 Patches à 2×2 Punkte, zyklisch Akzent / Sekundär / c2 —
+    /// bei Überlappungen entsteht dynamische 3-Farb-Mischung.
     private static func meshColors(for theme: KKTheme) -> [Color] {
-        let bg  = theme.backgroundColors
-        let c0  = bg[0]
-        let c1  = bg.count > 1 ? bg[1] : bg[0]
-        let c2  = bg.count > 2 ? bg[2] : c1
-        let glow = theme.accent.opacity(theme.isDark ? 0.38 : 0.10)
-        // Zeilen 0 und 4 (Außen, fest):  abwechselnd c0/c1
-        // Zeilen 1 und 3 (innen):        c2 in der Mitte, c1 an den Rändern
-        // Zeile  2 (Mitte):              glow im Zentrum, c2 daneben
-        return [
-            c0,   c1,   c0,   c1,   c0,   // Zeile 0
-            c1,   c1,   c2,   c1,   c1,   // Zeile 1
-            c0,   c2,   glow, c2,   c0,   // Zeile 2 — Akzent-Hauch Mitte
-            c1,   c1,   c2,   c1,   c1,   // Zeile 3
-            c0,   c1,   c0,   c1,   c0,   // Zeile 4
-        ]
+        let bg = theme.backgroundColors
+        let c0 = bg[0]
+        let c1 = bg.count > 1 ? bg[1] : bg[0]
+        let c2 = bg.count > 2 ? bg[2] : c1
+        let a  = theme.accent.opacity(theme.isDark ? 0.68 : 0.20)
+        let s  = theme.secondary.opacity(theme.isDark ? 0.52 : 0.15)
+
+        var colors = [Color]()
+        colors.reserveCapacity(64)
+        for row in 0 ... 7 {
+            for col in 0 ... 7 {
+                let color: Color
+                if row == 0 || row == 7 || col == 0 || col == 7 {
+                    // Außenring: c0/c1 alternierend
+                    color = (row + col).isMultiple(of: 2) ? c0 : c1
+                } else {
+                    // 3×3 Patches (je 2×2 Punkte): (patch-Summe) % 3 → 3 Farben
+                    let patch = ((row - 1) / 2 + (col - 1) / 2) % 3
+                    color = patch == 0 ? a : (patch == 1 ? s : c2)
+                }
+                colors.append(color)
+            }
+        }
+        return colors
     }
 
-    /// 25 SIMD2<Float>-Punkte (5×5, zeilenweise).
-    /// Außenring (row 0/4, col 0/4) bleibt immer am regulären Gitter-Platz.
-    /// Die 9 inneren Punkte (rows 1-3, cols 1-3) driften mit Sinus-Wellen.
+    /// 64 SIMD2<Float>-Punkte (8×8, zeilenweise). Gitterabstand 1/7 ≈ 0,143.
+    /// Außenring (row 0/7, col 0/7) bleibt fix — kein Bildrand-Riss.
+    /// 36 Innenpunkte: zwei Sinus-Wellen mit irrationalem Frequenzverhältnis
+    /// (1,0 / 1,7 für x, 1,3 / 0,7 für y) + gleichmäßig verteilte Phasen [0, 2π).
     private static func meshPoints(t: Double) -> [SIMD2<Float>] {
         var pts = [SIMD2<Float>]()
-        pts.reserveCapacity(25)
-        for row in 0 ... 4 {
-            for col in 0 ... 4 {
-                let baseX = Float(col) * 0.25
-                let baseY = Float(row) * 0.25
-                let isInner = row >= 1 && row <= 3 && col >= 1 && col <= 3
+        pts.reserveCapacity(64)
+        for row in 0 ... 7 {
+            for col in 0 ... 7 {
+                let baseX = Float(col) / 7.0
+                let baseY = Float(row) / 7.0
+                let isInner = row >= 1 && row <= 6 && col >= 1 && col <= 6
                 if isInner {
-                    let idx    = (row - 1) * 3 + (col - 1)   // 0 … 8
-                    let phase  = Double(idx) * 0.7
-                    let drift: Float = 0.05
-                    // Unterschiedliche Frequenz x/y → Lissajous-artige Bahn
-                    let dx = Float(sin(t + phase)) * drift
-                    let dy = Float(cos(t * 1.3 + phase * 0.9)) * drift
+                    let idx   = (row - 1) * 6 + (col - 1)          // 0 … 35
+                    let phase = Double(idx) * (2 * .pi / 36.0)      // gleichmäßig verteilt
+                    let drift: Float = 0.18                          // > 0,143 → Überlappung
+                    // Zwei überlagerte Komponenten: Primär 68 %, Sekundär 32 %
+                    let dx = Float(sin(t        + phase)       * 0.68
+                                 + sin(t * 1.7  + phase * 0.4) * 0.32) * drift
+                    let dy = Float(cos(t * 1.3  + phase)       * 0.68
+                                 + cos(t * 0.7  + phase * 1.6) * 0.32) * drift
                     pts.append(SIMD2<Float>(baseX + dx, baseY + dy))
                 } else {
                     pts.append(SIMD2<Float>(baseX, baseY))
