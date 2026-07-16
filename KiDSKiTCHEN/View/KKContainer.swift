@@ -7,27 +7,93 @@
 //  ScrollView + LazyVStack tragen den Inhalt, KKCard/KKSection formen die Karten.
 //  Bewusst schlicht gehalten — volle Gestaltungskontrolle, kein List-Verhalten.
 //
-//  Warum kein `List`: Jay will die Optik komplett selbst bestimmen (Karten,
-//  Abstände, klebende Header) ohne die vorgegebenen List-Zellen/Trenner.
+//  Aufgabe 0 (16.7.): KKCard + KKScroll sind jetzt theme-aware (ThemeSettings.shared).
+//  KKAnimatedBackground liefert den rotierenden Gradient-Hintergrund; respektiert
+//  accessibilityReduceMotion, scenePhase und LoopSpeed == .off.
 //
 
 import SwiftUI
+
+// MARK: - KKAnimatedBackground
+/// Animierter Gradient-Hintergrund, der sich aus dem aktiven KKTheme ableitet.
+/// Stoppt automatisch bei Reduce Motion, Hintergrund-App oder LoopSpeed == .off.
+struct KKAnimatedBackground: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var settings: ThemeSettings = .shared
+
+    private var isPaused: Bool {
+        reduceMotion || settings.loopSpeed == .off || scenePhase != .active
+    }
+
+    var body: some View {
+        let colors = settings.theme.backgroundColors
+
+        TimelineView(.animation(paused: isPaused)) { context in
+            let duration = settings.loopSpeed.duration
+            let t: CGFloat = duration > 0
+                ? CGFloat(context.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: duration) / duration)
+                : 0
+
+            let angle = Double(t) * 2 * Double.pi
+            let cosA  = CGFloat(cos(angle))
+            let sinA  = CGFloat(sin(angle))
+
+            LinearGradient(
+                colors: colors,
+                startPoint: UnitPoint(x: 0.5 + 0.5 * cosA, y: 0.5 + 0.5 * sinA),
+                endPoint:   UnitPoint(x: 0.5 - 0.5 * cosA, y: 0.5 - 0.5 * sinA)
+            )
+        }
+    }
+}
 
 // MARK: - KKCard
 /// Abgerundete Karten-Hülle (ersetzt die frühere List-Row + `.listRowBackground`).
 /// Clippt den Inhalt bewusst NICHT — Elemente dürfen überstehen (z. B. das
 /// Portionen-Rad, dessen runde Enden sonst an der Kante „abgehackt" wirkten).
+/// Oberfläche richtet sich nach ThemeSettings.glassLevel:
+///   none   → solide Kartenfarbe (theme.cardSurface) + Rand + Schatten
+///   subtle → .ultraThinMaterial + Rand
+///   medium → .thinMaterial     + Rand
+///   strong → .regularMaterial  + Rand
 struct KKCard<Content: View>: View {
     var padding: CGFloat = 16
     var cornerRadius: CGFloat = 18
     @ViewBuilder var content: Content
 
+    @State private var settings: ThemeSettings = .shared
+
     var body: some View {
+        let theme = settings.theme
+        let glass = settings.glassLevel
+
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
-            .background(.background, in: RoundedRectangle(cornerRadius: cornerRadius))
-            .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .background {
+                cardBackground(cornerRadius: cornerRadius, theme: theme, glass: glass)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(theme.cardStroke, lineWidth: 1.5)
+            }
+            .shadow(color: theme.shadowColor, radius: 5, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func cardBackground(cornerRadius: CGFloat, theme: KKTheme, glass: GlassLevel) -> some View {
+        switch glass {
+        case .none:
+            RoundedRectangle(cornerRadius: cornerRadius).fill(theme.cardSurface)
+        case .subtle:
+            RoundedRectangle(cornerRadius: cornerRadius).fill(.ultraThinMaterial)
+        case .medium:
+            RoundedRectangle(cornerRadius: cornerRadius).fill(.thinMaterial)
+        case .strong:
+            RoundedRectangle(cornerRadius: cornerRadius).fill(.regularMaterial)
+        }
     }
 }
 
@@ -89,9 +155,6 @@ struct KKSection<Content: View>: View {
 
 // MARK: - KKDeleteButton
 /// Sichtbarer, kindgerechter Lösch-Knopf (ersetzt den versteckten List-Swipe).
-/// Konsequenz aus Jays Herz-Knopf-Entscheid 11.7.: sichtbare Bedienung statt
-/// versteckter Geste. Gleiche Maße/Trefferfläche wie der Favoriten-Knopf (34×34,
-/// runde contentShape), damit Kinderfinger sicher treffen. Immer mit VoiceOver-Label.
 struct KKDeleteButton: View {
     var accessibilityLabel: String = "Löschen"
     let action: () -> Void
@@ -111,8 +174,7 @@ struct KKDeleteButton: View {
 
 // MARK: - KKScroll
 /// Vertikaler Grund-Container: ScrollView + LazyVStack mit einheitlichem Rand.
-/// Für einfache, ungruppierte Listen (Rezept-Detail). Home nutzt eine eigene
-/// Variante mit klebenden Section-Headern (`pinnedViews`).
+/// Hintergrund: KKAnimatedBackground (Theme-Farben + LoopSpeed).
 struct KKScroll<Content: View>: View {
     var spacing: CGFloat = 16
     var horizontalPadding: CGFloat = 16
@@ -126,7 +188,7 @@ struct KKScroll<Content: View>: View {
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, 12)
         }
-        .background(Color(red:0.97,green:0.93,blue:0.83).ignoresSafeArea())
+        .background { KKAnimatedBackground().ignoresSafeArea() }
     }
 }
 
@@ -134,8 +196,6 @@ struct KKScroll<Content: View>: View {
 extension View {
     /// Durchsichtige Navigationsleiste (Jay 11.7.): kein Balken-Hintergrund, der
     /// Inhalt läuft beim Scrollen sichtbar unter Zurück-Knopf & Co. durch.
-    /// Muss pro View gesetzt werden — der globale UIKit-Appearance-Weg griff
-    /// auf iOS 26 nicht (Gerätetest 11.7.).
     func kkTransparentNavBar() -> some View {
         toolbarBackground(.hidden, for: .navigationBar)
     }

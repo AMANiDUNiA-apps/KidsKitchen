@@ -29,6 +29,7 @@ struct Home: View {
     @State private var pantryOnly = false
     @State private var kidsCat: RecipeCategory? = nil
     @State private var weekCarouselIndex = 0
+    @State private var settings: ThemeSettings = .shared
 
     // Pull-to-Search (Teil A): Scroll-Offset der Liste + Fokus des Overlay-Suchfelds.
     // `searchExpanded` ist zugleich Fokus-Flag und „Suche offen"-Zustand (Kavsoft-Muster).
@@ -163,7 +164,7 @@ struct Home: View {
             }
         })
         .animation(.interpolatingSpring(duration: 0.25), value: searchExpanded)
-        .background(Color(red:0.97,green:0.93,blue:0.83).ignoresSafeArea())
+        .background { KKAnimatedBackground().ignoresSafeArea() }
         .navigationTitle("KidsKitchen")
         .kkTransparentNavBar()
         .task { await viewModel.loadRecipes() }
@@ -206,7 +207,7 @@ struct Home: View {
             HStack(spacing: 6) {
                 ForEach(weeklyPicks.indices, id: \.self) { i in
                     Circle()
-                        .fill(i == weekCarouselIndex ? Color.orange : Color.secondary.opacity(0.3))
+                        .fill(i == weekCarouselIndex ? settings.theme.accent : Color.secondary.opacity(0.3))
                         .frame(width: 6, height: 6)
                 }
             }
@@ -345,17 +346,19 @@ struct Home: View {
 
 // MARK: - Hero-Banner
 private struct HeroBanner: View {
+    @State private var settings: ThemeSettings = .shared
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 24)
                 .fill(
                     LinearGradient(
-                        colors: [Color(red:0.85,green:0.58,blue:0.22),Color(red:0.72,green:0.40,blue:0.15)],
+                        colors: [settings.theme.accent, settings.theme.secondary],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-            Image(systemName: "book.fill")
+            Image(systemName: settings.theme.decoSymbol)
                 .font(.system(size: 88))
                 .foregroundStyle(.white.opacity(0.12))
                 .offset(x: 18, y: 8)
@@ -373,7 +376,7 @@ private struct HeroBanner: View {
         }
         .frame(height: 150)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color:Color(red:0.6,green:0.38,blue:0.12).opacity(0.3),radius:8,x:0,y:4)
+        .shadow(color: settings.theme.shadowColor, radius: 8, x: 0, y: 4)
         .accessibilityElement(children: .combine)
     }
 }
@@ -381,6 +384,7 @@ private struct HeroBanner: View {
 // MARK: - Klebender Kategorie-Header
 private struct CategoryHeader: View {
     let category: RecipeCategory?
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         HStack(spacing: 8) {
@@ -396,7 +400,7 @@ private struct CategoryHeader: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Deckt beim Kleben (pinnedViews) den durchscrollenden Inhalt zu.
-        .background(Color(red:0.97,green:0.93,blue:0.83))
+        .background(settings.theme.headerBackground)
     }
 }
 
@@ -406,13 +410,14 @@ private struct KidsCatButton: View {
     let cat: RecipeCategory
     let selected: Bool
     let action: () -> Void
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(selected ? Color(red:0.72,green:0.40,blue:0.18) : Color(red:0.99,green:0.96,blue:0.88))
+                        .fill(selected ? settings.theme.accent : settings.theme.cardSurface)
                         .frame(width: 62, height: 62)
                     Image(systemName: cat.symbolName)
                         .font(.title2)
@@ -434,6 +439,7 @@ private struct KidsCatButton: View {
 
 private struct KidsRecipeRow: View {
     let recipe: Recipe
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -462,8 +468,8 @@ private struct KidsRecipeRow: View {
             Color.clear.frame(width: 34, height: 34)
         }
         .padding(14)
-        .background(Color(red:0.99,green:0.96,blue:0.88),in:RoundedRectangle(cornerRadius:16))
-        .overlay(RoundedRectangle(cornerRadius:16).stroke(Color(red:0.85,green:0.72,blue:0.52).opacity(0.35),lineWidth:1.5))
+        .background(settings.theme.cardSurface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(settings.theme.cardStroke, lineWidth: 1.5))
     }
 }
 
@@ -473,6 +479,7 @@ private struct KidsRecipeRow: View {
 /// Kategorie-Farbe + Symbol, kein Bildplatzhalter.
 private struct WeeklyCard: View {
     let recipe: Recipe
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         let color = recipe.category?.color ?? .orange
@@ -502,11 +509,11 @@ private struct WeeklyCard: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(colors:[Color(red:0.85,green:0.58,blue:0.22),Color(red:0.72,green:0.40,blue:0.15)],
-                           startPoint:.topLeading,endPoint:.bottomTrailing)
+            LinearGradient(colors: [settings.theme.accent, settings.theme.secondary],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color:Color(red:0.6,green:0.38,blue:0.12).opacity(0.25),radius:8,x:0,y:4)
+        .shadow(color: settings.theme.shadowColor, radius: 8, x: 0, y: 4)
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(recipe.name), \(recipe.category?.rawValue ?? "Rezept")")

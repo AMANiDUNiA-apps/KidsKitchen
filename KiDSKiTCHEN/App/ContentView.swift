@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var prefs: Preferences = .shared
+    @State private var settings: ThemeSettings = .shared
     // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
 
@@ -28,7 +29,7 @@ struct ContentView: View {
             NavigationStack { MoreView() }
                 .tabItem { Label("Mehr", systemImage: "ellipsis") }
         }
-        .tint(Color(red:0.72,green:0.40,blue:0.18))
+        .tint(settings.theme.accent)
         .environment(\.locale, Locale(identifier: "de_DE"))
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
@@ -55,6 +56,16 @@ private struct MoreView: View {
             }
             navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
                 PreferencesView()
+            }
+
+            navCard("Saisonkalender", symbol: "leaf", tint: .green) {
+                SeasonalCalendarView()
+            }
+            navCard("Design", symbol: "paintpalette", tint: .purple) {
+                ThemeSettingsView()
+            }
+            navCard("Rezept importieren", symbol: "sparkles", tint: .indigo) {
+                RecipeImportView()
             }
 
             Button {
