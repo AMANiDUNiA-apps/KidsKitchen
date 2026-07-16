@@ -301,12 +301,10 @@ extension Preferences {
     /// abgehakte Posten bleiben unangetastet. Gibt die Anzahl neuer Vorschläge zurück.
     @discardableResult
     func refreshShoppingSuggestions(recipes: [Recipe]) -> Int {
-        shopping.removeAll { $0.suggested && !$0.done }
         let shortfalls = weekPlanShortfalls(recipes: recipes).filter(\.isShort)
-        var added = 0
-        for s in shortfalls {
+        let newSuggestions = shortfalls.map { s -> ShoppingItem in
             let canBook = s.numeric && s.missing > 0
-            shopping.append(ShoppingItem(
+            return ShoppingItem(
                 text: s.shoppingText,
                 category: s.category,
                 suggested: true,
@@ -314,10 +312,13 @@ extension Preferences {
                 ingredientName: canBook ? s.ingredientName : nil,
                 amount: canBook ? s.missing : nil,
                 unit: canBook ? s.unit : nil
-            ))
-            added += 1
+            )
         }
-        return added
+        // Einmal zuweisen statt N appends → nur 1 didSet/saveShopping()-Call
+        var kept = shopping.filter { !$0.suggested || $0.done }
+        kept.append(contentsOf: newSuggestions)
+        shopping = kept
+        return newSuggestions.count
     }
 
     /// Wie viele offene Bedarfs-Posten stünden gerade an (für Badge/Knopf-Text)?
@@ -330,23 +331,23 @@ extension Preferences {
     /// Vorschlag ist — die Menge symmetrisch in den Vorrat ein bzw. wieder aus.
     func setShoppingDone(_ id: UUID, done: Bool) {
         guard let idx = shopping.firstIndex(where: { $0.id == id }) else { return }
-        shopping[idx].done = done
-
         var item = shopping[idx]
-        guard item.booksIntoPantry, let name = item.ingredientName,
-              let amount = item.amount, let unit = item.unit,
-              unit == Ingredient.canonicalUnit(for: name) else { return }
+        item.done = done
 
-        if done && !item.booked {
-            setPantryAmount((pantryAmount(name) ?? 0) + amount, for: name)
-            item.booked = true
-            shopping[idx] = item
-        } else if !done && item.booked {
-            let newValue = (pantryAmount(name) ?? 0) - amount
-            setPantryAmount(max(0, newValue), for: name)
-            item.booked = false
-            shopping[idx] = item
+        if item.booksIntoPantry, let name = item.ingredientName,
+           let amount = item.amount, let unit = item.unit,
+           unit == Ingredient.canonicalUnit(for: name) {
+            if done && !item.booked {
+                setPantryAmount((pantryAmount(name) ?? 0) + amount, for: name)
+                item.booked = true
+            } else if !done && item.booked {
+                let newValue = (pantryAmount(name) ?? 0) - amount
+                setPantryAmount(max(0, newValue), for: name)
+                item.booked = false
+            }
         }
+        // Einmal zuweisen → nur 1 didSet/saveShopping()-Call statt vorher 2
+        shopping[idx] = item
     }
 
     // MARK: Teil B — „Gekocht" bucht den Vorrat ab

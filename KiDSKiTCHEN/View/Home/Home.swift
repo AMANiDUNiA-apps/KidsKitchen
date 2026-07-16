@@ -228,14 +228,15 @@ struct Home: View {
             .fill(.ultraThinMaterial)
             .ignoresSafeArea()
             .overlay {
-                expandedSearch
-                    .opacity(searchExpanded ? 1 : 0)
-                    .offset(y: searchExpanded ? 0 : 60)
-                    .allowsHitTesting(searchExpanded)
+                if searchExpanded {
+                    expandedSearch
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
             .opacity(searchExpanded ? 1 : pullSearchProgress)
             // Im eingeklappten Zustand nie Berührungen abfangen (Liste bleibt bedienbar).
             .allowsHitTesting(searchExpanded)
+            .accessibilityHidden(!searchExpanded)
     }
 
     private func collapseSearch() {
@@ -430,9 +431,11 @@ private struct KidsCatButton: View {
                     .font(.caption.bold())
                     .foregroundStyle(selected ? cat.color : .primary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .frame(maxWidth: 78)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(width: 78)
             }
+            .frame(width: 78)
         }
         .buttonStyle(.plain)
         .scaleEffect(selected ? 1.08 : 1)
@@ -485,7 +488,6 @@ private struct WeeklyCard: View {
     @State private var settings: ThemeSettings = .shared
 
     var body: some View {
-        let color = recipe.category?.color ?? .orange
         HStack(spacing: 16) {
             ZStack {
                 Circle().fill(.white.opacity(0.25)).frame(width: 74, height: 74)

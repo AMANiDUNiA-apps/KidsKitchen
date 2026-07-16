@@ -26,6 +26,40 @@ struct RemoteRecipe: Decodable {
     let carbohydrates_g: String?
     let fat_g: String?
     let dietary_fiber_g: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, description, category, image, servings, prep_time, cook_time, directions
+        case instructions_list, calories, protein_g, carbohydrates_g, fat_g, dietary_fiber_g
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        image = try container.decodeIfPresent(String.self, forKey: .image)
+        servings = Self.int(from: container, forKey: .servings)
+        prep_time = try container.decodeIfPresent(String.self, forKey: .prep_time)
+        cook_time = try container.decodeIfPresent(String.self, forKey: .cook_time)
+        directions = try container.decodeIfPresent(String.self, forKey: .directions)
+        instructions_list = try container.decodeIfPresent(String.self, forKey: .instructions_list)
+        calories = try container.decodeIfPresent(String.self, forKey: .calories)
+        protein_g = try container.decodeIfPresent(String.self, forKey: .protein_g)
+        carbohydrates_g = try container.decodeIfPresent(String.self, forKey: .carbohydrates_g)
+        fat_g = try container.decodeIfPresent(String.self, forKey: .fat_g)
+        dietary_fiber_g = try container.decodeIfPresent(String.self, forKey: .dietary_fiber_g)
+    }
+
+    private static func int(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Int? {
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return value
+        }
+        if let raw = try? container.decodeIfPresent(String.self, forKey: key) {
+            return minutes(raw)
+        }
+        return nil
+    }
 }
 
 extension RemoteRecipe {
@@ -35,7 +69,7 @@ extension RemoteRecipe {
         let stepsText = instructions_list?.isEmpty == false ? instructions_list : directions
         let steps = Self.splitSteps(stepsText ?? "")
         return Recipe(
-            name: title?.isEmpty == false ? title! : "Ohne Titel",
+            name: title.flatMap { $0.isEmpty ? nil : $0 } ?? "Ohne Titel",
             details: description ?? "",
             imageURL: image,
             category: nil,

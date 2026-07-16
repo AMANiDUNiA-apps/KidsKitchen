@@ -163,7 +163,7 @@ extension KKSeasonalItem {
     static func inSeason(_ month: KKMonth, kinds: Set<SeasonKind>? = nil) -> [KKSeasonalItem] {
         all.filter { item in
             item.availabilityByMonth[month] != nil
-            && (kinds == nil || kinds!.contains(item.kind))
+            && (kinds?.contains(item.kind) ?? true)
         }
     }
 
@@ -171,7 +171,7 @@ extension KKSeasonalItem {
     static func freshInSeason(_ month: KKMonth, kinds: Set<SeasonKind>? = nil) -> [KKSeasonalItem] {
         all.filter { item in
             item.availabilityByMonth[month] == .fresh
-            && (kinds == nil || kinds!.contains(item.kind))
+            && (kinds?.contains(item.kind) ?? true)
         }
     }
 }

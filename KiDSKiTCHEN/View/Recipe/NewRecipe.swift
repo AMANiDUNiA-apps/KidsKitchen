@@ -26,6 +26,7 @@ struct NewRecipe: View {
         if newRecipe.name.isEmpty {
             viewModel.recipeIngredients = []
             viewModel.recipeInstructions = []
+            viewModel.resetAllSelected()
         }
     }
 
@@ -35,9 +36,10 @@ struct NewRecipe: View {
         recipe.instructions = viewModel.recipeInstructions
         recipe.nutrition = recipe.computedNutrition   // Nährwerte aus den Zutaten
         listViewModel.add(recipe)
-        // Editor für das nächste Rezept leeren
+        // Editor für das nächste Rezept leeren + isSelected-Flags zurücksetzen
         viewModel.recipeIngredients = []
         viewModel.recipeInstructions = []
+        viewModel.resetAllSelected()
         dismiss()
     }
 

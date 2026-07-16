@@ -11,7 +11,7 @@
 import SwiftUI
 
 // MARK: - Config
-struct InlineToastConfig: Equatable {
+struct InlineToastConfig {
     var icon: String
     var title: String
     var subTitle: String = ""
@@ -59,9 +59,12 @@ private struct ToastTransition: Transition {
 
     nonisolated func offset(_ proxy: GeometryProxy, phase: TransitionPhase) -> CGFloat {
         let height = proxy.size.height + 10
-        return anchor == .top
-            ? (phase.isIdentity ? 0 : -height)
-            : (phase.isIdentity ? 0 : height)
+        switch anchor {
+        case .top:
+            return phase.isIdentity ? 0 : -height
+        case .bottom:
+            return phase.isIdentity ? 0 : height
+        }
     }
 }
 

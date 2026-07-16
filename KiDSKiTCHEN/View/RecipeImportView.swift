@@ -44,6 +44,7 @@ struct ExtractedRecipe {
 }
 
 // MARK: - ViewModel
+@MainActor
 @Observable
 final class RecipeImportViewModel {
     enum ImportState {
@@ -60,14 +61,24 @@ final class RecipeImportViewModel {
     private let model = SystemLanguageModel.default
 
     var canImport: Bool {
-        !urlText.isEmpty && URL(string: urlText) != nil
-        && model.availability == .available
+        validImportURL != nil && model.availability == .available
     }
 
     var modelUnavailable: Bool { model.availability != .available }
 
+    private var validImportURL: URL? {
+        let trimmed = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host?.isEmpty == false else {
+            return nil
+        }
+        return url
+    }
+
     func startImport() async {
-        guard let url = URL(string: urlText.trimmingCharacters(in: .whitespaces)) else { return }
+        guard let url = validImportURL else { return }
         state = .fetching
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
