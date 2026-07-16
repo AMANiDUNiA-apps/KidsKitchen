@@ -126,7 +126,7 @@ struct KKScroll<Content: View>: View {
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, 12)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(red:0.97,green:0.93,blue:0.83).ignoresSafeArea())
     }
 }
 

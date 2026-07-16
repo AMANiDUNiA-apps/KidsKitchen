@@ -163,7 +163,7 @@ struct Home: View {
             }
         })
         .animation(.interpolatingSpring(duration: 0.25), value: searchExpanded)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(red:0.97,green:0.93,blue:0.83).ignoresSafeArea())
         .navigationTitle("KidsKitchen")
         .kkTransparentNavBar()
         .task { await viewModel.loadRecipes() }
@@ -350,14 +350,14 @@ private struct HeroBanner: View {
             RoundedRectangle(cornerRadius: 24)
                 .fill(
                     LinearGradient(
-                        colors: [.orange, .pink.opacity(0.85)],
+                        colors: [Color(red:0.85,green:0.58,blue:0.22),Color(red:0.72,green:0.40,blue:0.15)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-            Image(systemName: "fork.knife")
+            Image(systemName: "book.fill")
                 .font(.system(size: 88))
-                .foregroundStyle(.white.opacity(0.18))
+                .foregroundStyle(.white.opacity(0.12))
                 .offset(x: 18, y: 8)
                 .accessibilityHidden(true)
 
@@ -373,7 +373,7 @@ private struct HeroBanner: View {
         }
         .frame(height: 150)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .orange.opacity(0.25), radius: 8, x: 0, y: 4)
+        .shadow(color:Color(red:0.6,green:0.38,blue:0.12).opacity(0.3),radius:8,x:0,y:4)
         .accessibilityElement(children: .combine)
     }
 }
@@ -396,7 +396,7 @@ private struct CategoryHeader: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Deckt beim Kleben (pinnedViews) den durchscrollenden Inhalt zu.
-        .background(Color(.systemGroupedBackground))
+        .background(Color(red:0.97,green:0.93,blue:0.83))
     }
 }
 
@@ -412,7 +412,7 @@ private struct KidsCatButton: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(selected ? cat.color : cat.color.opacity(0.14))
+                        .fill(selected ? Color(red:0.72,green:0.40,blue:0.18) : Color(red:0.99,green:0.96,blue:0.88))
                         .frame(width: 62, height: 62)
                     Image(systemName: cat.symbolName)
                         .font(.title2)
@@ -462,7 +462,8 @@ private struct KidsRecipeRow: View {
             Color.clear.frame(width: 34, height: 34)
         }
         .padding(14)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(red:0.99,green:0.96,blue:0.88),in:RoundedRectangle(cornerRadius:16))
+        .overlay(RoundedRectangle(cornerRadius:16).stroke(Color(red:0.85,green:0.72,blue:0.52).opacity(0.35),lineWidth:1.5))
     }
 }
 
@@ -501,11 +502,11 @@ private struct WeeklyCard: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(colors: [color, color.opacity(0.7)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors:[Color(red:0.85,green:0.58,blue:0.22),Color(red:0.72,green:0.40,blue:0.15)],
+                           startPoint:.topLeading,endPoint:.bottomTrailing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: color.opacity(0.25), radius: 8, x: 0, y: 4)
+        .shadow(color:Color(red:0.6,green:0.38,blue:0.12).opacity(0.25),radius:8,x:0,y:4)
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(recipe.name), \(recipe.category?.rawValue ?? "Rezept")")

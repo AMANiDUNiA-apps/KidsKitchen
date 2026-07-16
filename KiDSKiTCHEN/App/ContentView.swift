@@ -28,7 +28,7 @@ struct ContentView: View {
             NavigationStack { MoreView() }
                 .tabItem { Label("Mehr", systemImage: "ellipsis") }
         }
-        .tint(.orange)
+        .tint(Color(red:0.72,green:0.40,blue:0.18))
         .environment(\.locale, Locale(identifier: "de_DE"))
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
