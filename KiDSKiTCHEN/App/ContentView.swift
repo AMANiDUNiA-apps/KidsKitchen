@@ -30,6 +30,7 @@ struct ContentView: View {
                 .tabItem { Label("Mehr", systemImage: "ellipsis") }
         }
         .tint(settings.theme.accent)
+        .preferredColorScheme(settings.theme.isDark ? .dark : .light)
         .environment(\.locale, Locale(identifier: "de_DE"))
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },

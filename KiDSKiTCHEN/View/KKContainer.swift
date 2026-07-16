@@ -8,15 +8,17 @@
 //  Bewusst schlicht gehalten — volle Gestaltungskontrolle, kein List-Verhalten.
 //
 //  Aufgabe 0 (16.7.): KKCard + KKScroll sind jetzt theme-aware (ThemeSettings.shared).
-//  KKAnimatedBackground liefert den rotierenden Gradient-Hintergrund; respektiert
-//  accessibilityReduceMotion, scenePhase und LoopSpeed == .off.
+//  KKAnimatedBackground liefert einen MeshGradient-Hintergrund (5×5 Punkte).
+//  Außenring (16 Punkte) ist immer fest — nur die 3×3 Innenpunkte driften sanft.
+//  Respektiert accessibilityReduceMotion, scenePhase und LoopSpeed == .off.
 //
 
 import SwiftUI
 
 // MARK: - KKAnimatedBackground
-/// Animierter Gradient-Hintergrund, der sich aus dem aktiven KKTheme ableitet.
-/// Stoppt automatisch bei Reduce Motion, Hintergrund-App oder LoopSpeed == .off.
+/// MeshGradient-Hintergrund (5×5 = 25 Punkte). Außenring fest, 3×3 Innenpunkte
+/// driften langsam via sin/cos mit individuellem Phasen-Offset → organische Bewegung.
+/// Stoppt bei Reduce Motion, Hintergrund-App oder LoopSpeed == .off.
 struct KKAnimatedBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -27,25 +29,67 @@ struct KKAnimatedBackground: View {
     }
 
     var body: some View {
-        let colors = settings.theme.backgroundColors
+        let theme  = settings.theme
+        let colors = Self.meshColors(for: theme)
 
         TimelineView(.animation(paused: isPaused)) { context in
             let duration = settings.loopSpeed.duration
-            let t: CGFloat = duration > 0
-                ? CGFloat(context.date.timeIntervalSinceReferenceDate
-                    .truncatingRemainder(dividingBy: duration) / duration)
-                : 0
-
-            let angle = Double(t) * 2 * Double.pi
-            let cosA  = CGFloat(cos(angle))
-            let sinA  = CGFloat(sin(angle))
-
-            LinearGradient(
-                colors: colors,
-                startPoint: UnitPoint(x: 0.5 + 0.5 * cosA, y: 0.5 + 0.5 * sinA),
-                endPoint:   UnitPoint(x: 0.5 - 0.5 * cosA, y: 0.5 - 0.5 * sinA)
+            let t = duration > 0
+                ? context.date.timeIntervalSinceReferenceDate / duration * 2 * .pi
+                : 0.0
+            MeshGradient(
+                width: 5, height: 5,
+                points: Self.meshPoints(t: t),
+                colors: colors
             )
         }
+    }
+
+    /// 25 Farben (5×5, zeilenweise): Außenring = Theme-Hintergrundfarben,
+    /// Mitte = leichter Akzent-Hauch für Tiefe.
+    private static func meshColors(for theme: KKTheme) -> [Color] {
+        let bg  = theme.backgroundColors
+        let c0  = bg[0]
+        let c1  = bg.count > 1 ? bg[1] : bg[0]
+        let c2  = bg.count > 2 ? bg[2] : c1
+        let glow = theme.accent.opacity(theme.isDark ? 0.38 : 0.10)
+        // Zeilen 0 und 4 (Außen, fest):  abwechselnd c0/c1
+        // Zeilen 1 und 3 (innen):        c2 in der Mitte, c1 an den Rändern
+        // Zeile  2 (Mitte):              glow im Zentrum, c2 daneben
+        return [
+            c0,   c1,   c0,   c1,   c0,   // Zeile 0
+            c1,   c1,   c2,   c1,   c1,   // Zeile 1
+            c0,   c2,   glow, c2,   c0,   // Zeile 2 — Akzent-Hauch Mitte
+            c1,   c1,   c2,   c1,   c1,   // Zeile 3
+            c0,   c1,   c0,   c1,   c0,   // Zeile 4
+        ]
+    }
+
+    /// 25 SIMD2<Float>-Punkte (5×5, zeilenweise).
+    /// Außenring (row 0/4, col 0/4) bleibt immer am regulären Gitter-Platz.
+    /// Die 9 inneren Punkte (rows 1-3, cols 1-3) driften mit Sinus-Wellen.
+    private static func meshPoints(t: Double) -> [SIMD2<Float>] {
+        var pts = [SIMD2<Float>]()
+        pts.reserveCapacity(25)
+        for row in 0 ... 4 {
+            for col in 0 ... 4 {
+                let baseX = Float(col) * 0.25
+                let baseY = Float(row) * 0.25
+                let isInner = row >= 1 && row <= 3 && col >= 1 && col <= 3
+                if isInner {
+                    let idx    = (row - 1) * 3 + (col - 1)   // 0 … 8
+                    let phase  = Double(idx) * 0.7
+                    let drift: Float = 0.05
+                    // Unterschiedliche Frequenz x/y → Lissajous-artige Bahn
+                    let dx = Float(sin(t + phase)) * drift
+                    let dy = Float(cos(t * 1.3 + phase * 0.9)) * drift
+                    pts.append(SIMD2<Float>(baseX + dx, baseY + dy))
+                } else {
+                    pts.append(SIMD2<Float>(baseX, baseY))
+                }
+            }
+        }
+        return pts
     }
 }
 

@@ -42,13 +42,13 @@ enum LoopSpeed: Int, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Dauer einer vollen Gradient-Rotation in Sekunden (0 = statisch).
+    /// Dauer eines vollen Drift-Zyklus der inneren Mesh-Punkte in Sekunden (0 = statisch).
     var duration: Double {
         switch self {
         case .off:    return 0
-        case .slow:   return 14
-        case .medium: return 6
-        case .lively: return 2.5
+        case .slow:   return 120
+        case .medium: return 60
+        case .lively: return 30
         }
     }
 }
