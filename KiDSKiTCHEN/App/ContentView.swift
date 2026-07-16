@@ -2,7 +2,12 @@
 //  ContentView.swift
 //  KiDSKiTCHEN
 //
-//  TabView-Navigation: Rezepte / Wochenplan / Einkaufen / Mehr.
+//  TabView-Navigation (bau/air 16.7.):
+//  Rezepte / Zutaten / Woche / Einkaufen / Mehr
+//
+//  NEU — Zutaten-Tab: Vorratsschrank als Haupt-Screen, Saisonkalender über
+//  Leading-Toolbar-Link erreichbar. Mehr: schlanker (ohne Vorrat + Saison).
+//  Tab-Struktur als Screenshot an Jay — vor dem weiteren Umbau abstimmen.
 //
 
 import SwiftUI
@@ -10,13 +15,15 @@ import SwiftUI
 struct ContentView: View {
     @State private var prefs: Preferences = .shared
     @State private var settings: ThemeSettings = .shared
-    // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
 
     var body: some View {
         TabView {
             NavigationStack { Home() }
                 .tabItem { Label("Rezepte", systemImage: "fork.knife") }
+
+            NavigationStack { ZutatenTabRoot() }
+                .tabItem { Label("Zutaten", systemImage: "basket") }
 
             NavigationStack { WeekPlanView() }
                 .tabItem { Label("Woche", systemImage: "calendar") }
@@ -32,7 +39,6 @@ struct ContentView: View {
         .tint(settings.theme.accent)
         .preferredColorScheme(settings.theme.isDark ? .dark : .light)
         .environment(\.locale, Locale(identifier: "de_DE"))
-        // TabBar: Theme-Hintergrundfarbe statt iOS-Standard-Frosted-Weiß.
         .toolbarBackground(settings.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
@@ -43,9 +49,25 @@ struct ContentView: View {
     }
 }
 
-// MARK: - MoreView
-// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — die Menüpunkte
-// sind eigene KKCards mit Symbol, Titel und Chevron.
+// MARK: - Zutaten-Tab
+/// Vorratsschrank als Haupt-Screen; Saisonkalender über den Leading-Knopf erreichbar.
+private struct ZutatenTabRoot: View {
+    var body: some View {
+        PantryView()
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(destination: SeasonalCalendarView()) {
+                        Label("Saisonkalender", systemImage: "leaf")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Saisonkalender")
+                }
+            }
+    }
+}
+
+// MARK: - MoreView (schlanker — Vorrat + Saison jetzt im Zutaten-Tab)
+// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
     @State private var settings: ThemeSettings = .shared
@@ -58,18 +80,11 @@ private struct MoreView: View {
             navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
                 PreferencesView()
             }
-            navCard("Vorratsschrank", symbol: "cabinet", tint: .green) {
-                PantryView()
-            }
-            navCard("Saisonkalender", symbol: "leaf", tint: .green) {
-                SeasonalCalendarView()
-            }
             navCard("Rezept importieren", symbol: "sparkles", tint: .indigo) {
                 RecipeImportView()
             }
 
             Button {
-                // Startet das Erst-Start-Onboarding erneut (ContentView-Cover reagiert).
                 hasOnboarded = false
             } label: {
                 menuRow("Einführung nochmal ansehen", symbol: "sparkles", tint: .pink, showsChevron: false)

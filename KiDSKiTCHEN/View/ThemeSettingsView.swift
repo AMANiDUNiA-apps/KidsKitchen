@@ -2,8 +2,8 @@
 //  ThemeSettingsView.swift
 //  KiDSKiTCHEN
 //
-//  Design-Einstellungen: 8 Farbstyles + drei stufenlose Regler
-//  (Karten-Deckkraft / Hintergrund-Bewegung / Ecken-Radius).
+//  Design-Einstellungen: 8 Farbstyles + vier stufenlose/wählbare Regler
+//  (Karten-Deckkraft / Hintergrund-Bewegung / Ecken-Radius / Übergangs-Animation).
 //  Alle Änderungen wirken sofort (ThemeSettings.shared @Observable).
 //
 
@@ -20,6 +20,7 @@ struct ThemeSettingsView: View {
             glassSection
             loopSection
             radiusSection
+            transitionSection
         }
         .navigationTitle("Design")
         .navigationBarTitleDisplayMode(.large)
@@ -47,7 +48,6 @@ struct ThemeSettingsView: View {
     }
 
     // MARK: Karten-Oberfläche
-    // Links = Klar (0, Hintergrund sichtbar) · Rechts = Aus (1, solide Karte).
     private var glassSection: some View {
         KKSection(title: "Karten-Oberfläche", systemImage: "square.on.square") {
             Slider(value: $settings.cardOpacity, in: 0...1)
@@ -63,23 +63,34 @@ struct ThemeSettingsView: View {
     }
 
     // MARK: Hintergrund-Bewegung
-    // Links = Aus (0, statisch) · Rechts = Lebhaft (1, 30s Drift).
+    // Toggle an/aus + Slider für die Loop-Dauer in echten Sekunden (21–86 s).
+    // 21 s = schnell · 86 s = sehr sanft. Reduce Motion schaltet automatisch ab.
     private var loopSection: some View {
         KKSection(title: "Hintergrund-Bewegung", systemImage: "arrow.2.circlepath") {
-            Slider(value: $settings.loopFactor, in: 0...1)
+            Toggle("Bewegung aktiv", isOn: $settings.animationEnabled)
                 .tint(settings.theme.accent)
-            HStack {
-                Text("Aus").font(.caption2.bold()).foregroundStyle(.secondary)
-                Spacer()
-                Text("Lebhaft").font(.caption2.bold()).foregroundStyle(.secondary)
+
+            if settings.animationEnabled {
+                Divider()
+                Slider(value: $settings.animationSeconds, in: 21...86)
+                    .tint(settings.theme.accent)
+                HStack {
+                    Text("Schnell (21 s)").font(.caption2.bold()).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Sanft (86 s)").font(.caption2.bold()).foregroundStyle(.secondary)
+                }
+                Text("Aktuell: \(Int(settings.animationSeconds)) s pro Zyklus.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Hintergrund bleibt statisch. Auch automatisch aus bei reduzierter Bewegung.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            Text("Aus: statischer Hintergrund · Lebhaft: schnelle Drift-Bewegung")
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
     // MARK: Ecken-Radius
     // Links = Eckig (8 pt) · Rechts = Pillen (36 pt).
+    // DEMO Design-Token: diesen Regler ändern → Radius wirkt auf ALLE Screens gleichzeitig.
     private var radiusSection: some View {
         KKSection(title: "Ecken-Radius", systemImage: "rectangle.roundedtop") {
             Slider(value: Binding(
@@ -88,11 +99,25 @@ struct ThemeSettingsView: View {
             ), in: 8...36)
                 .tint(settings.theme.accent)
             HStack {
-                Text("Eckig").font(.caption2.bold()).foregroundStyle(.secondary)
+                Text("Eckig (8)").font(.caption2.bold()).foregroundStyle(.secondary)
                 Spacer()
-                Text("Pillen").font(.caption2.bold()).foregroundStyle(.secondary)
+                Text("Pillen (36)").font(.caption2.bold()).foregroundStyle(.secondary)
             }
-            Text("Wirkt auf alle Karten und Innen-Elemente.")
+            Text("Wirkt zentral auf alle Karten und Innen-Elemente.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: Übergangs-Animation (Zutaten-Übersicht)
+    private var transitionSection: some View {
+        KKSection(title: "Übergangs-Animation (Zutaten)", systemImage: "wand.and.sparkles") {
+            Picker("Stil", selection: $settings.pantryTransition) {
+                ForEach(PantryTransitionStyle.allCases) { style in
+                    Text(style.label).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text("Animation beim Einblenden der Zutaten-Kacheln in der Vorratsschrank-Übersicht.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -111,7 +136,6 @@ private struct ThemeCard: View {
 
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
-                // Vorschau-Gradient
                 LinearGradient(
                     colors: theme.backgroundColors,
                     startPoint: .topLeading,
@@ -120,7 +144,6 @@ private struct ThemeCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: r))
                 .frame(height: 100)
 
-                // Akzent-Streifen unten
                 VStack {
                     Spacer()
                     HStack(spacing: 6) {
@@ -133,7 +156,6 @@ private struct ThemeCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                // Deko-Symbol
                 Image(systemName: theme.decoSymbol)
                     .font(.title)
                     .foregroundStyle(theme.accent.opacity(0.35))
@@ -141,7 +163,6 @@ private struct ThemeCard: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 12)
 
-                // Auswahl-Haken
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)

@@ -2,22 +2,14 @@
 //  WeekPlanView.swift
 //  KiDSKiTCHEN
 //
-//  Created by Claude Fable 5 on 03.07.26.
 //  Wochenplaner: je Wochentag geplante Rezepte, heutiger Tag hervorgehoben.
-//  Rezepte werden aus der Detailansicht („Zum Wochenplan") hinzugefügt.
-//
-//  Weiterbau 4, Teil C — Wochenansicht mit gepinnten Tages-Headern und einem
-//  Wochenstreifen, der mit der Scrollposition mitläuft. Vorlage: Kavsoft
-//  „CalendarScrollEffect" (Balaji Venkatesh) — pinnedViews-Sticky-Header +
-//  scrollPosition-Sync, hier auf das echte Weekday/Plan-Modell adaptiert
-//  (deutsche Wochentage, KEINE erfundenen Kalender-Termine).
+//  Weiterbau bau/air (16.7.):
+//  — Datum je Tag (Mo 14.7.) im Streifen + Tages-Header
+//  — Navigation zu vorheriger/nächster Woche (weekOffset)
+//  — AddRecipeToDaySheet: alle hardcodierten Radii auf Theme-Token umgestellt (A2)
 //
 //  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`. Entfernen als
-//  sichtbarer Lösch-Knopf (Jay 11.7., Herz-Knopf-Referenz).
-//
-//  Weiterbau 7, Teil B: „+" im Tages-Header öffnet ein inhaltshohes Sheet
-//  (Kavsoft „DynamicHeightSheet", s. KKDynamicSheet), um dem Tag ein echtes Rezept
-//  zuzuordnen (prefs.addToPlan) — kompakt statt Vollbild.
+//  sichtbarer Lösch-Knopf (KKDeleteButton, Jay 11.7.).
 //
 
 import SwiftUI
@@ -26,25 +18,66 @@ struct WeekPlanView: View {
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
     @State private var settings: ThemeSettings = .shared
-    /// Tag, dem gerade ein Rezept zugeordnet wird (Hinzufügen-Sheet, Teil B).
+    /// Wochen-Versatz zur aktuellen Woche (0 = diese Woche, −1 = letzte, +1 = nächste).
+    @State private var weekOffset: Int = 0
     @State private var addTarget: Weekday?
-    /// Tag, für den gerade Koch-Vorschläge aus dem Vorrat gezeigt werden (Teil C).
     @State private var cookTarget: Weekday?
-    // Startet oben am Wochenanfang (Montag) — der Streifen spiegelt so von Anfang an
-    // die echte Scrollposition. „Heute" bleibt über Badge + Punkt klar markiert.
-    // (Auto-Scroll-zu-heute bewusst weggelassen: bei LazyVStack nicht verlässlich
-    //  ohne Klick-Test verifizierbar, und der Streifen würde sonst desynchron wirken.)
     @State private var selectedDay: Weekday? = Weekday.allCases.first
-    /// Aktive Kategorie-Filter nach Mahlzeit-Art (leer = alles zeigen).
     @State private var selectedCategories: [RecipeCategory] = []
     @Namespace private var stripNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    // MARK: Datum-Rechnung
+
+    /// Montag der Zielwoche (weekOffset = 0 → aktuelle Woche).
+    private var weekStart: Date {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let weekday = cal.component(.weekday, from: today)
+        // Calendar.weekday: 1=So … 7=Sa. Tage seit Montag:
+        let daysSinceMon = (weekday - 2 + 7) % 7
+        let monday = cal.date(byAdding: .day, value: -daysSinceMon, to: today) ?? today
+        return cal.date(byAdding: .weekOfYear, value: weekOffset, to: monday) ?? monday
+    }
+
+    /// Kalender-Datum für den gegebenen Wochentag in der aktuellen Zielwoche.
+    private func calendarDate(for day: Weekday) -> Date {
+        let idx = Weekday.allCases.firstIndex(of: day) ?? 0
+        return Calendar.current.date(byAdding: .day, value: idx, to: weekStart) ?? weekStart
+    }
+
+    /// True wenn der Tag das heutige Datum trägt (nur bei weekOffset == 0 möglich).
+    private func isToday(_ day: Weekday) -> Bool {
+        weekOffset == 0 && day == Weekday.today
+    }
+
+    // Datum-Formatter (statisch — einmal erzeugt)
+    private static let stripDayFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "d."; f.locale = Locale(identifier: "de_DE"); return f
+    }()
+    private static let headerDateFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "d.M."; f.locale = Locale(identifier: "de_DE"); return f
+    }()
+    private static let rangeFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "d.M."; f.locale = Locale(identifier: "de_DE"); return f
+    }()
+
+    private var weekTitle: String {
+        switch weekOffset {
+        case 0:  return "Diese Woche"
+        case 1:  return "Nächste Woche"
+        case -1: return "Letzte Woche"
+        default:
+            let end = Calendar.current.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+            return "\(Self.rangeFormatter.string(from: weekStart))–\(Self.rangeFormatter.string(from: end))"
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            weekNavigationBar
             weekStrip
 
-            // Kategorie-Filter (Mahlzeit-Art) — nur real geplante Kategorien, ab zwei.
             if presentCategories.count > 1 {
                 CategoryFilterChips(categories: presentCategories) { selection in
                     selectedCategories = selection
@@ -56,13 +89,10 @@ struct WeekPlanView: View {
 
             GeometryReader { geo in
                 ScrollView(.vertical) {
-                    // Native pinned section headers erzeugen den Klebe-Effekt (Kavsoft).
                     LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
                         ForEach(Weekday.allCases) { day in
                             Section {
                                 dayContent(day)
-                                    // Der letzte Tag braucht Resthöhe, damit er beim
-                                    // Antippen ganz nach oben scrollen kann.
                                     .frame(minHeight: day == Weekday.allCases.last ? geo.size.height - 120 : nil,
                                            alignment: .top)
                             } header: {
@@ -96,27 +126,75 @@ struct WeekPlanView: View {
         }
     }
 
+    // MARK: Wochen-Navigations-Leiste (neu bau/air)
+    private var weekNavigationBar: some View {
+        HStack(spacing: 0) {
+            Button {
+                withAnimation(.snappy(duration: 0.25)) { weekOffset -= 1 }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.bold())
+                    .frame(width: 44, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Vorherige Woche")
+
+            Spacer()
+
+            Button {
+                withAnimation(.snappy(duration: 0.25)) { weekOffset = 0 }
+            } label: {
+                Text(weekTitle)
+                    .font(.system(.subheadline, design: .serif).weight(.semibold))
+                    .foregroundStyle(weekOffset == 0 ? .primary : settings.theme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(weekOffset == 0 ? "Aktuelle Woche" : "Zur aktuellen Woche tippen")
+
+            Spacer()
+
+            Button {
+                withAnimation(.snappy(duration: 0.25)) { weekOffset += 1 }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.body.bold())
+                    .frame(width: 44, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Nächste Woche")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background(settings.theme.headerBackground)
+        .foregroundStyle(.primary)
+    }
+
     // MARK: Wochenstreifen (springt zum Tag, folgt der Scrollposition)
     private var weekStrip: some View {
         HStack(spacing: 0) {
             ForEach(Weekday.allCases) { day in
                 let isSelected = day == selectedDay
-                VStack(spacing: 4) {
+                VStack(spacing: 2) {
                     Text(day.short)
                         .font(.caption.bold())
                         .foregroundStyle(isSelected ? .white : .secondary)
-                    if day == Weekday.today {
+                    Text(Self.stripDayFormatter.string(from: calendarDate(for: day)))
+                        .font(.system(size: 10))
+                        .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary.opacity(0.7))
+                    if isToday(day) {
                         Circle()
-                            .fill(isSelected ? Color.white : Color.orange)
+                            .fill(isSelected ? Color.white : settings.theme.accent)
                             .frame(width: 5, height: 5)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 52)
                 .background {
                     if isSelected {
                         Capsule()
-                            .fill(.orange)
+                            .fill(settings.theme.accent)
                             .matchedGeometryEffect(id: "selectedDay", in: stripNamespace)
                             .padding(.horizontal, 4)
                     }
@@ -126,27 +204,35 @@ struct WeekPlanView: View {
                     withAnimation(.snappy(duration: 0.25)) { selectedDay = day }
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(day.rawValue + (day == Weekday.today ? ", heute" : ""))
+                .accessibilityLabel(day.rawValue + (isToday(day) ? ", heute" : "")
+                    + ", " + Self.stripDayFormatter.string(from: calendarDate(for: day)))
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .background(settings.theme.headerBackground)
     }
 
     // MARK: Gepinnter Tages-Header
     private func dayHeader(_ day: Weekday) -> some View {
         HStack(spacing: 8) {
-            Text(day.rawValue)
-                .font(.system(.title3, design: .serif).bold())
-                .foregroundStyle(.primary)
-            if day == Weekday.today {
-                Text("heute")
-                    .font(.caption2.bold())
-                    .padding(.horizontal, 6).padding(.vertical, 1)
-                    .background(.tint, in: Capsule())
-                    .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    Text(day.rawValue)
+                        .font(.system(.title3, design: .serif).bold())
+                        .foregroundStyle(.primary)
+                    if isToday(day) {
+                        Text("heute")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(.tint, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
+                }
+                Text(Self.headerDateFormatter.string(from: calendarDate(for: day)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             let count = visibleNames(day).count
@@ -155,13 +241,12 @@ struct WeekPlanView: View {
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
-            // Rezept diesem Tag zuordnen (öffnet das inhaltshohe Sheet, Teil B).
             Button {
                 addTarget = day
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(settings.theme.accent)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Rezept zu \(day.rawValue) hinzufügen")
@@ -169,9 +254,7 @@ struct WeekPlanView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Deckt beim Kleben den durchscrollenden Inhalt zu.
         .background(settings.theme.headerBackground)
-        // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
     }
@@ -186,15 +269,13 @@ struct WeekPlanView: View {
                     Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
                         .foregroundStyle(.tertiary)
                         .font(.subheadline)
-                    // Einstieg „Was kann ich kochen?" (Teil C) — nur an wirklich
-                    // leeren Tagen, nicht wenn nur der Filter leert.
                     if selectedCategories.isEmpty {
                         Button {
                             cookTarget = day
                         } label: {
                             Label("Was kann ich kochen?", systemImage: "sparkles")
                                 .font(.system(.subheadline, design: .serif).weight(.medium))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(settings.theme.accent)
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen, und ordnet sie \(day.rawValue) zu")
@@ -205,8 +286,6 @@ struct WeekPlanView: View {
                     ForEach(Array(names.enumerated()), id: \.element) { index, name in
                         if index > 0 { Divider() }
                         planRow(name: name, day: day)
-                            // Neu zugeordnetes Rezept (Teil B/„+"-Sheet) ploppt sanft
-                            // hinein (Teil D). Reduce Motion → nur Einblenden.
                             .transition(reduceMotion
                                         ? .opacity
                                         : .scale(scale: 0.85).combined(with: .opacity))
@@ -223,11 +302,9 @@ struct WeekPlanView: View {
         let cooked = prefs.isCooked(day, name)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                // Gekocht-Knopf (Teil B): bucht die Zutaten vom Vorrat ab.
                 if let recipe = resolved {
                     cookButton(recipe: recipe, day: day, cooked: cooked)
                 }
-
                 if let recipe = resolved {
                     NavigationLink { Rezepte(recipe: recipe) } label: {
                         HStack {
@@ -252,8 +329,6 @@ struct WeekPlanView: View {
                     }
                 }
             }
-
-            // Ehrlicher Hinweis, wenn beim Kochen Zutaten nicht im Vorrat waren.
             if cooked, let recipe = resolved {
                 let missing = prefs.cookMissingNames(day, recipe: recipe)
                 if !missing.isEmpty {
@@ -270,8 +345,6 @@ struct WeekPlanView: View {
         .padding(.vertical, 4)
     }
 
-    /// Runder Gekocht-Umschalter — leerer Kreis → grüner Haken mit kleinem Bounce
-    /// (W7-D-Muster, Reduce-Motion-sicher).
     private func cookButton(recipe: Recipe, day: Weekday, cooked: Bool) -> some View {
         Button {
             withAnimation(.snappy(duration: 0.25)) {
@@ -297,8 +370,6 @@ struct WeekPlanView: View {
         viewModel.recipes.first { $0.name == name }
     }
 
-    /// Mahlzeit-Kategorien, die in der ganzen Woche tatsächlich geplant sind
-    /// (kanonische Reihenfolge) — nur real vorhandene Chips.
     private var presentCategories: [RecipeCategory] {
         let cats = Set(Weekday.allCases
             .flatMap { prefs.plannedRecipes($0) }
@@ -306,8 +377,6 @@ struct WeekPlanView: View {
         return RecipeCategory.allCases.filter { cats.contains($0) }
     }
 
-    /// Geplante Rezepte eines Tages nach aktivem Kategorie-Filter. Rezepte ohne
-    /// auflösbare Kategorie erscheinen nur, wenn kein Filter aktiv ist.
     private func visibleNames(_ day: Weekday) -> [String] {
         let names = prefs.plannedRecipes(day)
         guard !selectedCategories.isEmpty else { return names }
@@ -318,19 +387,15 @@ struct WeekPlanView: View {
     }
 }
 
-// MARK: - AddRecipeToDaySheet (Teil B)
-/// Inhaltshoher Inhalt für das KKDynamicSheet: listet die echten Rezepte, die dem
-/// Tag noch NICHT zugeordnet sind, und ordnet das getippte Rezept zu (addToPlan).
-/// Eigener Container (KKCard-artige Zeilen), kein `List`. Die Liste ist auf den
-/// Inhalt gedeckelt — wenige Rezepte → niedriges Sheet, viele → scrollbar.
+// MARK: - AddRecipeToDaySheet (A2: alle hardcodierten Radii → Theme-Token)
 private struct AddRecipeToDaySheet: View {
     let day: Weekday
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
+    @State private var settings: ThemeSettings = .shared
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
-    /// Noch nicht für den Tag geplante Rezepte (optional nach Suche gefiltert).
     private var candidates: [Recipe] {
         let planned = Set(prefs.plannedRecipes(day))
         return viewModel.recipes
@@ -339,7 +404,6 @@ private struct AddRecipeToDaySheet: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    /// Höhe des Treffer-Containers: bis zu 6 Zeilen sichtbar, darüber wird gescrollt.
     private var listHeight: CGFloat { CGFloat(min(candidates.count, 6)) * 60 }
 
     var body: some View {
@@ -362,7 +426,6 @@ private struct AddRecipeToDaySheet: View {
                 .accessibilityLabel("Schließen")
             }
 
-            // Suchfeld erst ab genug Rezepten (sonst unnötig).
             if viewModel.recipes.count > 6 {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -372,7 +435,7 @@ private struct AddRecipeToDaySheet: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(Color(.secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: 12))
+                            in: RoundedRectangle(cornerRadius: settings.cardInnerRadius))
             }
 
             if candidates.isEmpty {
@@ -408,10 +471,10 @@ private struct AddRecipeToDaySheet: View {
     }
 
     private func candidateRow(_ recipe: Recipe) -> some View {
-        let color = recipe.category?.color ?? .orange
+        let color = recipe.category?.color ?? settings.theme.accent
         return HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: settings.cardInnerRadius)
                     .fill(color.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Image(systemName: recipe.category?.symbolName ?? "fork.knife")
@@ -433,7 +496,7 @@ private struct AddRecipeToDaySheet: View {
         }
         .padding(10)
         .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 14))
+                    in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(recipe.name) zu \(day.rawValue) hinzufügen")
