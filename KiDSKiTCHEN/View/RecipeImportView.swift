@@ -233,17 +233,21 @@ struct RecipeImportView: View {
 private extension ExtractedRecipe {
     func toRecipeDraft() -> Recipe {
         let ingredients: [RecipeIngredient] = ingredientLines.compactMap { line in
-            let parts     = line.split(separator: " ", maxSplits: 2)
-            let amount    = parts.count >= 1
-                ? (Double(String(parts[0]).replacingOccurrences(of: ",", with: ".")) ?? 0) : 0
+            let parts        = line.split(separator: " ", maxSplits: 2)
+            // Erstes Token nur abtrennen, wenn es WIRKLICH eine Zahl ist —
+            // „etwas Salz" / „½ Zitrone" bleiben sonst komplett als Name erhalten.
+            let amountParsed = parts.count >= 1
+                ? Double(String(parts[0]).replacingOccurrences(of: ",", with: ".")) : nil
+            let amount       = amountParsed ?? 0
             // Zweites Token nur als Menge-Einheit werten, wenn es eine bekannte IngredientUnit ist
             // (z. B. "g", "Stück") — sonst gehört es zum Namen, z. B. "2 Eier" statt "2 Stück 2 Eier".
-            let knownUnit = parts.count >= 2 ? IngredientUnit(rawValue: String(parts[1])) : nil
+            let knownUnit = (amountParsed != nil && parts.count >= 2)
+                ? IngredientUnit(rawValue: String(parts[1])) : nil
             let unit      = knownUnit ?? .piece
             let name: String
             if knownUnit != nil {
                 name = parts.count >= 3 ? String(parts[2]) : ""
-            } else if parts.count >= 2 {
+            } else if amountParsed != nil, parts.count >= 2 {
                 name = parts[1...].joined(separator: " ")
             } else {
                 name = line
