@@ -3,8 +3,7 @@
 //  KiDSKiTCHEN
 //
 //  Saisonkalender — Gemüse & Obst mit Verfügbarkeit je Monat (frisch / Lagerware).
-//  Daten 1:1 aus docs/material/03-saisonkalender.md übernommen (ChatGPT-Export,
-//  Quellen-Warnung im Material beachten). Kein Netz-Call — offline-first.
+//  Allgemeines Saisonkalender-Wissen (Erzeugerkalender). Kein Netz-Call — offline-first.
 //
 //  Namensraum KKMonth / KKSeasonalItem vermeidet Konflikte mit Season.swift.
 //
