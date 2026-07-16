@@ -81,29 +81,36 @@ struct KKAnimatedBackground: View {
 
     /// 64 SIMD2<Float>-Punkte (8×8, zeilenweise). Gitterabstand 1/7 ≈ 0,143.
     /// Außenring (row 0/7, col 0/7) bleibt fix — kein Bildrand-Riss.
-    /// 36 Innenpunkte: zwei Sinus-Wellen mit irrationalem Frequenzverhältnis
-    /// (1,0 / 1,7 für x, 1,3 / 0,7 für y) + gleichmäßig verteilte Phasen [0, 2π).
+    /// 36 Innenpunkte: je Punkt vier einzigartige Frequenzen + Phasen via
+    /// Goldener-Schnitt-Hash → keine sichtbare Wellenkorrelation zwischen
+    /// Nachbarpunkten, wirkt wie unabhängige Zufallsbewegung.
+    /// Drift 0,18 > Gitterabstand → bewusste Überlappungen.
     private static func meshPoints(t: Double) -> [SIMD2<Float>] {
         var pts = [SIMD2<Float>]()
         pts.reserveCapacity(64)
+        let tf = Float(t)
         for row in 0 ... 7 {
             for col in 0 ... 7 {
-                let baseX = Float(col) / 7.0
-                let baseY = Float(row) / 7.0
-                let isInner = row >= 1 && row <= 6 && col >= 1 && col <= 6
-                if isInner {
-                    let idx   = (row - 1) * 6 + (col - 1)          // 0 … 35
-                    let phase = Double(idx) * (2 * .pi / 36.0)      // gleichmäßig verteilt
-                    let drift: Float = 0.18                          // > 0,143 → Überlappung
-                    // Zwei überlagerte Komponenten: Primär 68 %, Sekundär 32 %
-                    let dx = Float(sin(t        + phase)       * 0.68
-                                 + sin(t * 1.7  + phase * 0.4) * 0.32) * drift
-                    let dy = Float(cos(t * 1.3  + phase)       * 0.68
-                                 + cos(t * 0.7  + phase * 1.6) * 0.32) * drift
-                    pts.append(SIMD2<Float>(baseX + dx, baseY + dy))
-                } else {
-                    pts.append(SIMD2<Float>(baseX, baseY))
+                let baseX = Float(col) / 7
+                let baseY = Float(row) / 7
+                guard row >= 1 && row <= 6 && col >= 1 && col <= 6 else {
+                    pts.append(SIMD2<Float>(baseX, baseY)); continue
                 }
+                let h = Float((row - 1) * 6 + (col - 1) + 1)
+                // Goldener-Schnitt-Folge: frac(h · k) für irrationale k →
+                // niedrige Diskrepanz, keine Korrelation zwischen Punkten.
+                let fx1 = (h * 0.618034).truncatingRemainder(dividingBy: 1) * 1.4 + 0.3
+                let fy1 = (h * 0.381966).truncatingRemainder(dividingBy: 1) * 1.4 + 0.3
+                let fx2 = (h * 1.324718).truncatingRemainder(dividingBy: 1) * 1.0 + 0.9
+                let fy2 = (h * 1.732051).truncatingRemainder(dividingBy: 1) * 1.0 + 0.9
+                let px1 = (h * 2.236068).truncatingRemainder(dividingBy: 1) * (2 * .pi)
+                let py1 = (h * 2.645751).truncatingRemainder(dividingBy: 1) * (2 * .pi)
+                let px2 = (h * 3.162278).truncatingRemainder(dividingBy: 1) * (2 * .pi)
+                let py2 = (h * 3.741657).truncatingRemainder(dividingBy: 1) * (2 * .pi)
+                let drift: Float = 0.18
+                let dx = (sin(tf * fx1 + px1) * 0.65 + sin(tf * fx2 + px2) * 0.35) * drift
+                let dy = (cos(tf * fy1 + py1) * 0.65 + cos(tf * fy2 + py2) * 0.35) * drift
+                pts.append(SIMD2<Float>(baseX + dx, baseY + dy))
             }
         }
         return pts

@@ -25,6 +25,7 @@ import SwiftUI
 struct WeekPlanView: View {
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
+    @State private var settings: ThemeSettings = .shared
     /// Tag, dem gerade ein Rezept zugeordnet wird (Hinzufügen-Sheet, Teil B).
     @State private var addTarget: Weekday?
     /// Tag, für den gerade Koch-Vorschläge aus dem Vorrat gezeigt werden (Teil C).
@@ -50,7 +51,7 @@ struct WeekPlanView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
-                .background(Color(.systemGroupedBackground))
+                .background(settings.theme.headerBackground)
             }
 
             GeometryReader { geo in
@@ -74,9 +75,10 @@ struct WeekPlanView: View {
                     .padding(.bottom, 16)
                 }
                 .scrollPosition(id: $selectedDay, anchor: .top)
-                .background(Color(.systemGroupedBackground))
+                .background(.clear)
             }
         }
+        .background { KKAnimatedBackground().ignoresSafeArea() }
         .navigationTitle("Wochenplan")
         .kkTransparentNavBar()
         .navigationBarTitleDisplayMode(.inline)
@@ -129,7 +131,7 @@ struct WeekPlanView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
+        .background(settings.theme.headerBackground)
     }
 
     // MARK: Gepinnter Tages-Header
@@ -167,7 +169,7 @@ struct WeekPlanView: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Deckt beim Kleben den durchscrollenden Inhalt zu.
-        .background(Color(.systemGroupedBackground))
+        .background(settings.theme.headerBackground)
         // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
