@@ -3,7 +3,7 @@
 //  KiDSKiTCHEN
 //
 //  Statische Erklär-Texte je Nährstoff in drei Ebenen (Kids / Eltern / Wissenschaft).
-//  Quelle: ChatGPT-Export Gespräch 37 + 43 (docs/material/01-naehrstoff-texte.md).
+//  Allgemeines Ernährungslehre-Wissen, keine Heilversprechen oder medizinische Beratung.
 //  Keine Netz-Calls (Kids-Category-Datenschutz). Lücken bei Mineralstoffen/
 //  Fettsäuren-Untertypen / Aminosäuren: als offen an Jay gemeldet.
 //
@@ -41,81 +41,81 @@ enum NutrientExplainer {
     static let entries: [String: NutrientEntry] = [
 
         "kcal": NutrientEntry(
-            kids: "Kalorien sind Energie für deinen Körper — wie Benzin für ein Auto! Davon brauchst du jeden Tag, damit du spielen, denken und wachsen kannst.",
-            adults: "Kalorien beschreiben den Energiegehalt eines Lebensmittels. Der Körper nutzt sie für Grundumsatz (Atmung, Herzschlag), Wachstum und Aktivität. Ein Überschuss wird als Fett gespeichert.",
-            scientific: "Kilokalorienangaben (kcal) messen den physiologischen Brennwert nach dem Atwater-System. Protein und Kohlenhydrate liefern je 4 kcal/g, Fett 9 kcal/g. Differenz zum physikalischen Brennwert entsteht durch unverdauliche Anteile."
+            kids: "Kalorien sind der Treibstoff für deinen Körper — so wie Akku-Ladung für dein Tablet. Ohne genug davon hast du keine Kraft zum Toben, Lernen und Wachsen.",
+            adults: "Kalorien geben an, wie viel Energie ein Lebensmittel liefert. Der Körper verbraucht sie im Ruhezustand (Atmen, Herzschlag), beim Wachsen und bei Bewegung. Isst man dauerhaft mehr, als verbraucht wird, legt der Körper den Rest als Fettreserve an.",
+            scientific: "Die kcal-Angabe folgt dem Atwater-Schema, das den physiologischen Energiegehalt aus den Makronährstoffen hochrechnet: Eiweiß und Kohlenhydrate liefern rund 4 kcal/g, Fett rund 9 kcal/g. Der tatsächliche Brennwert liegt wegen unverdaulicher Anteile etwas darunter."
         ),
 
         "protein": NutrientEntry(
-            kids: "Eiweiß baut Muskeln, Haut, Haare und Nägel — es ist der LEGO-Baustein deines Körpers! Ei, Fleisch und Bohnen haben viel davon.",
-            adults: "Proteine bestehen aus Aminosäuren und dienen als Enzyme, Hormone und Strukturproteine. Essenzielle Aminosäuren (Leucin, Isoleucin, Valin …) müssen über die Nahrung zugeführt werden.",
-            scientific: "Proteine sind Polymere aus bis zu 20 Aminosäuren, verknüpft durch Peptidbindungen. Essenziell: Histidin, Isoleucin, Leucin, Lysin, Methionin, Phenylalanin, Threonin, Tryptophan, Valin. Biologische Wertigkeit gibt an, wie effizient das Nahrungsprotein in körpereigenes Protein umgewandelt wird."
+            kids: "Eiweiß ist das Baumaterial für Muskeln, Haut, Haare und Fingernägel — wie Bausteine für deinen Körper. Eier, Fleisch und Bohnen liefern besonders viel davon.",
+            adults: "Proteine setzen sich aus Aminosäuren zusammen und übernehmen im Körper viele Aufgaben — als Enzym, Hormon oder Baustoff von Gewebe. Einen Teil dieser Aminosäuren (etwa Leucin, Isoleucin, Valin) kann der Körper nicht selbst herstellen, sie müssen mit der Nahrung kommen.",
+            scientific: "Proteine sind Ketten aus bis zu 20 verschiedenen Aminosäuren, die über Peptidbindungen verknüpft sind. Nicht selbst synthetisierbar (essenziell) sind Histidin, Isoleucin, Leucin, Lysin, Methionin, Phenylalanin, Threonin, Tryptophan und Valin. Die biologische Wertigkeit beschreibt, wie gut sich ein Nahrungsprotein in körpereigenes Protein umsetzen lässt."
         ),
 
         "fat": NutrientEntry(
-            kids: "Fett hält dich warm, schützt deine Organe und hilft, bestimmte Vitamine aufzunehmen — wie eine Winterjacke für deinen Körper! Öl, Nüsse und Butter haben viel davon.",
-            adults: "Fette liefern essenzielle Fettsäuren, ermöglichen die Aufnahme fettlöslicher Vitamine (A, D, E, K) und sind strukturelle Bestandteile von Zellmembranen und Hormonen.",
-            scientific: "Lipide umfassen Triglyceride, Phospholipide und Sterole. Triglyceride (3 Fettsäuren + Glycerin) sind die Hauptspeicherform. Fettsäuren unterscheiden sich durch Kettenlänge und Sättigungsgrad; die Konfiguration (cis/trans) beeinflusst biologische Aktivität wesentlich."
+            kids: "Fett wärmt dich, schützt deine Organe wie ein Polster und hilft, manche Vitamine überhaupt erst aufzunehmen. Öl, Nüsse und Butter enthalten viel davon.",
+            adults: "Fette liefern Fettsäuren, die der Körper braucht, und sind Voraussetzung dafür, dass die fettlöslichen Vitamine A, D, E und K aufgenommen werden können. Außerdem sind sie Baustoff für Zellmembranen und Hormone.",
+            scientific: "Zu den Lipiden zählen Triglyceride, Phospholipide und Sterine. Triglyceride — drei Fettsäuren an einem Glycerin-Grundgerüst — dienen als Hauptenergiespeicher. Fettsäuren unterscheiden sich in Kettenlänge und Sättigungsgrad; ob eine Doppelbindung cis- oder trans-konfiguriert ist, verändert die biologische Wirkung deutlich."
         ),
 
         "carbs": NutrientEntry(
-            kids: "Kohlenhydrate laden deinen Körper-Akku schnell auf — so wie Strom für ein Handy! Brot, Nudeln, Reis und Obst stecken voller Kohlenhydrate.",
-            adults: "Kohlenhydrate werden zu Glukose verstoffwechselt, dem primären Energieträger für Gehirn und Muskulatur. Komplexe Kohlenhydrate (Stärke, Ballaststoffe) stabilisieren den Blutzucker; einfache führen zu schnellen Anstiegen.",
-            scientific: "Kohlenhydrate (Mono-, Di- und Polysaccharide) werden durch Amylasen und intestinale Glukosidasen hydrolysiert. Glukose wird via GLUT-Transporter absorbiert. Der glykämische Index beschreibt die Blutzuckerantwort im Verhältnis zu Referenzglukose."
+            kids: "Kohlenhydrate füllen deinen Energiespeicher schnell wieder auf — wie Strom, der dein Handy auflädt. Brot, Nudeln, Reis und Obst stecken voll davon.",
+            adults: "Kohlenhydrate werden im Körper zu Traubenzucker (Glukose) umgewandelt, dem wichtigsten Energielieferanten für Gehirn und Muskeln. Komplexe Kohlenhydrate wie Stärke oder Ballaststoffe halten den Blutzucker stabiler, einfache lassen ihn schnell ansteigen.",
+            scientific: "Kohlenhydrate — Einfach-, Zweifach- und Vielfachzucker — werden durch Amylasen und Disaccharidasen im Darm gespalten. Die freigesetzte Glukose gelangt über GLUT-Transporter ins Blut. Der glykämische Index setzt die Blutzuckerwirkung eines Lebensmittels ins Verhältnis zu reiner Glukose."
         ),
 
         "sugar": NutrientEntry(
-            kids: "Zucker gibt dir sehr schnell Energie — aber auch wieder weg. Zu viel Zucker schadet den Zähnen! Obst hat natürlichen Zucker, Süßigkeiten haben sehr viel davon.",
-            adults: "Zucker sind einfache Kohlenhydrate (Monosaccharide wie Glukose/Fruktose, Disaccharide wie Saccharose). Hoher Konsum erhöht das Risiko für Karies, Übergewicht und Insulinresistenz.",
-            scientific: "Freie Zucker nach WHO-Definition umfassen Mono- und Disaccharide, die Nahrungsmitteln zugesetzt wurden, plus natürliche Zucker in Honig, Sirup und Fruchtsäften. Fruktose wird hepatisch ohne Insulinstimulation metabolisiert und kann bei Exzess die De-novo-Lipogenese steigern."
+            kids: "Zucker liefert ganz schnell Energie — die aber auch schnell wieder verpufft. Und zu viel davon schadet den Zähnen! In Obst steckt natürlicher Zucker, in Süßigkeiten sehr viel zugesetzter.",
+            adults: "Zucker zählt zu den einfachen Kohlenhydraten — als Einfachzucker wie Traubenzucker und Fruchtzucker oder als Zweifachzucker wie Haushaltszucker. Wer dauerhaft viel davon isst, erhöht sein Risiko für Karies, Übergewicht und eine gestörte Insulinwirkung.",
+            scientific: "Als „freie Zucker“ gelten nach WHO-Definition zugesetzte Mono- und Disaccharide sowie die natürlich enthaltenen Zucker in Honig, Sirup und Fruchtsaft. Fruktose wird in der Leber insulinunabhängig verstoffwechselt; bei hohem Konsum kann das die körpereigene Fettneubildung (De-novo-Lipogenese) ankurbeln."
         ),
 
         "fiber": NutrientEntry(
-            kids: "Ballaststoffe sind wie ein Besen in deinem Bauch — sie helfen, dass alles gut läuft! Vollkornbrot, Äpfel und Gemüse haben viel davon.",
-            adults: "Ballaststoffe sind unverdauliche Kohlenhydrate. Sie fördern die Darmbewegung, unterstützen die Darmflora, senken Cholesterin und regulieren den Blutzucker. Die DGE empfiehlt ≥30 g/Tag.",
-            scientific: "Nahrungsfasern (Cellulose, Hemicellulose, Pektin, Inulin, resistente Stärke) werden im Kolon von Mikrobiota fermentiert. Kurzkettige Fettsäuren (Butyrat, Propionat, Acetat) entstehen dabei und stärken die Kolonozyten-Funktion. Wasserunlösliche Fasern fördern vorwiegend Motilität, wasserlösliche den Cholesterin- und Glukosestoffwechsel."
+            kids: "Ballaststoffe wirken wie ein Besen für deinen Bauch — sie sorgen dafür, dass die Verdauung in Schwung bleibt. Vollkornbrot, Äpfel und Gemüse liefern reichlich davon.",
+            adults: "Ballaststoffe sind Kohlenhydrate, die der Körper nicht verdauen kann. Sie regen die Darmbewegung an, ernähren die Darmbakterien, senken den Cholesterinspiegel und helfen, den Blutzucker im Gleichgewicht zu halten. Als Richtwert gelten mindestens 30 g pro Tag.",
+            scientific: "Nahrungsfasern wie Cellulose, Hemicellulose, Pektin, Inulin oder resistente Stärke werden im Dickdarm von der Mikrobiota fermentiert. Dabei entstehen kurzkettige Fettsäuren (Butyrat, Propionat, Acetat), die die Darmschleimhaut mit Energie versorgen. Wasserunlösliche Fasern beschleunigen vor allem die Darmpassage, wasserlösliche wirken stärker auf Cholesterin- und Glukosewerte."
         ),
 
         "sodium": NutrientEntry(
-            kids: "Natrium (Salz) hilft deinen Nerven, Signale zu senden — wie ein Stromkabel! Aber zu viel Salz ist nicht gut für das Herz.",
-            adults: "Natrium reguliert den Flüssigkeitshaushalt, Nervenimpulse und den Blutdruck. Zu hohe Zufuhr erhöht das Risiko für Bluthochdruck. Die DGE empfiehlt <6 g Kochsalz pro Tag.",
-            scientific: "Na⁺ ist das wichtigste extrazelluläre Kation (138–142 mmol/l). Na⁺/K⁺-ATPase hält das Membranpotenzial aufrecht. Chronisch erhöhte Natriumzufuhr hemmt Renin-Angiotensin-Aldosteron-System nicht ausreichend, was zu persistierender Hypertonie führt."
+            kids: "Natrium steckt im Salz und hilft deinen Nerven, Signale weiterzugeben — wie ein Kabel für Strom. Zu viel Salz belastet aber das Herz.",
+            adults: "Natrium steuert den Flüssigkeitshaushalt, die Weiterleitung von Nervenreizen und den Blutdruck. Wird dauerhaft zu viel gegessen, steigt das Risiko für Bluthochdruck. Als Richtwert gelten weniger als 6 g Kochsalz pro Tag.",
+            scientific: "Na⁺ ist das dominierende Kation im Extrazellularraum (etwa 138–142 mmol/l). Die Na⁺/K⁺-ATPase hält das Ruhemembranpotenzial der Zellen aufrecht. Bei chronisch hoher Zufuhr kann das Renin-Angiotensin-Aldosteron-System die Natriumbilanz nicht mehr ausreichend ausgleichen, was langfristig zu Bluthochdruck beiträgt."
         ),
 
         "calcium": NutrientEntry(
-            kids: "Calcium macht Knochen und Zähne stark — wie Zement beim Hausbau! Milch, Joghurt und Käse enthalten besonders viel davon.",
-            adults: "Calcium ist entscheidend für Knochenmineralisierung, Muskelkontraktion und Blutgerinnung. Vitamin D verbessert die Aufnahme. Empfehlung: 1000 mg/Tag (Erwachsene), 1200 mg/Tag (>65 Jahre).",
-            scientific: "99 % des Körpercalciums sind als Hydroxylapatit [Ca₁₀(PO₄)₆(OH)₂] im Skelett gespeichert. Serumcalcium (2,2–2,6 mmol/l) wird streng durch PTH, Calcitriol und Calcitonin reguliert. Intrazelluläres Ca²⁺ als Second Messenger steuert Muskelkontraktion, Exozytose und Genexpression."
+            kids: "Calcium macht Knochen und Zähne fest — wie Zement, der ein Haus stabil hält. Milch, Joghurt und Käse liefern besonders viel davon.",
+            adults: "Calcium ist unverzichtbar für den Knochenaufbau, für die Muskelkontraktion und für die Blutgerinnung. Vitamin D verbessert, wie gut es aus dem Darm aufgenommen wird. Richtwerte liegen bei etwa 1000 mg täglich für Erwachsene, ab 65 Jahren etwas höher.",
+            scientific: "Rund 99 % des Körpercalciums liegen als Hydroxylapatit im Skelett gespeichert. Der Calciumspiegel im Blutserum wird eng über Parathormon, Calcitriol und Calcitonin reguliert. Intrazelluläres Ca²⁺ fungiert als Second Messenger und steuert unter anderem Muskelkontraktion, Vesikel-Ausschüttung und Genaktivität."
         ),
 
         "iron": NutrientEntry(
-            kids: "Eisen macht dein Blut stark, damit der Sauerstoff durch deinen ganzen Körper reisen kann — wie ein Taxi für Luft! Fleisch, Spinat und Hülsenfrüchte liefern Eisen.",
-            adults: "Eisen ist Bestandteil von Hämoglobin (O₂-Transport) und Myoglobin (Muskeln). Eisenmangel führt zu Anämie. Pflanzliches Eisen (Non-Häm) wird schlechter aufgenommen als tierisches (Häm-Eisen).",
-            scientific: "Fe²⁺ (Häm-Eisen, Absorptionsrate 20–30 %) und Fe³⁺ (Non-Häm, 2–10 %) werden unterschiedlich resorbiert. Vitamin C reduziert Fe³⁺ zu Fe²⁺ und steigert Absorption. Hepcidin reguliert Ferroportin und damit die intestinale Eisenabgabe ins Plasma."
+            kids: "Eisen bringt Sauerstoff mit dem Blut in jeden Winkel deines Körpers — wie ein kleiner Lieferwagen für Luft. Fleisch, Spinat und Hülsenfrüchte enthalten Eisen.",
+            adults: "Eisen ist Baustein von Hämoglobin, das Sauerstoff im Blut transportiert, und von Myoglobin in den Muskeln. Fehlt es, kann eine Blutarmut entstehen. Eisen aus pflanzlichen Quellen wird vom Körper schlechter aufgenommen als Eisen aus tierischen Lebensmitteln.",
+            scientific: "Häm-Eisen (Fe²⁺) wird mit einer Absorptionsrate von 20–30 % deutlich effizienter resorbiert als Non-Häm-Eisen (Fe³⁺, 2–10 %). Vitamin C reduziert Fe³⁺ zu Fe²⁺ und verbessert so die Aufnahme. Das Hormon Hepcidin steuert über den Eisentransporter Ferroportin, wie viel Eisen aus der Darmschleimhaut ins Blut abgegeben wird."
         ),
 
         "magnesium": NutrientEntry(
-            kids: "Magnesium ist der Entspannungs-Knopf für deine Muskeln — wenn du einen Krampf hast, fehlt oft Magnesium! Nüsse und Bananen haben viel davon.",
-            adults: "Magnesium ist Cofaktor von über 300 Enzymen. Wichtig für Muskelentspannung, Energiestoffwechsel (ATP-Synthese) und Nervenfunktion. Empfehlung: 300–350 mg/Tag.",
-            scientific: "Mg²⁺ stabilisiert ATP als Mg-ATP-Komplex, ist essenziell für DNA-Polymerase, Ribosomen-Funktion und Na⁺/K⁺-ATPase. Interzellulärer Mg²⁺-Spiegel reguliert NMDA-Rezeptoren. Renaler Verlust steigt bei Diabetes, Alkohol und bestimmten Diuretika."
+            kids: "Magnesium ist der Entspannungsknopf für deine Muskeln — bei einem Krampf fehlt oft genau das. Nüsse und Bananen sind gute Magnesium-Quellen.",
+            adults: "Magnesium wird von über 300 Enzymen im Körper gebraucht. Es unterstützt die Muskelentspannung, die Energiegewinnung in den Zellen und die Nervenfunktion. Als Richtwert gelten etwa 300–350 mg täglich.",
+            scientific: "Mg²⁺ bildet mit ATP einen stabilen Komplex und ist damit an nahezu jeder ATP-abhängigen Reaktion beteiligt, unter anderem bei DNA-Polymerasen und der Na⁺/K⁺-ATPase. Der intrazelluläre Mg²⁺-Spiegel beeinflusst auch NMDA-Rezeptoren im Nervensystem. Erhöhte renale Verluste treten etwa bei Diabetes, Alkoholkonsum oder bestimmten Diuretika auf."
         ),
 
         "potassium": NutrientEntry(
-            kids: "Kalium hält dein Herz im richtigen Takt und hilft deinen Muskeln — Bananen und Kartoffeln sind super Kalium-Lieferanten!",
-            adults: "Kalium reguliert Zellspannung, Blutdruck und Herzrhythmus. Es ist der Gegenspieler von Natrium. Empfehlung: 3500–4000 mg/Tag. Hohe Zufuhr senkt das Schlaganfall-Risiko.",
-            scientific: "K⁺ ist das Haupt-Intrazellularkation (140 mmol/l intrazellulär vs. 3,5–5 mmol/l extrazellulär). Dieses Konzentrationsgefälle erzeugt das Ruhemembranpotenzial (~−70 mV) in erregbaren Zellen. Hypokaliämie führt zu Arrhythmien durch veränderte Repolarisationsphase."
+            kids: "Kalium hält deinen Herzschlag im Takt und hilft deinen Muskeln beim Arbeiten — Bananen und Kartoffeln liefern reichlich davon!",
+            adults: "Kalium ist der Gegenspieler von Natrium und wichtig für die Zellspannung, den Blutdruck und einen gleichmäßigen Herzrhythmus. Richtwerte liegen bei 3500–4000 mg täglich; eine ausreichende Zufuhr wird mit einem geringeren Schlaganfallrisiko in Verbindung gebracht.",
+            scientific: "K⁺ ist das wichtigste intrazelluläre Kation (rund 140 mmol/l innerhalb, 3,5–5 mmol/l außerhalb der Zelle). Dieses Konzentrationsgefälle erzeugt das Ruhemembranpotenzial erregbarer Zellen (rund −70 mV). Ein Kaliummangel (Hypokaliämie) kann durch veränderte Repolarisation Herzrhythmusstörungen auslösen."
         ),
 
         "vitaminC": NutrientEntry(
-            kids: "Vitamin C ist dein Schutzschild gegen Erkältungen! Es hilft deinem Körper, sich zu wehren. Orangen, Paprika und Erdbeeren stecken voller Vitamin C.",
-            adults: "Vitamin C (Ascorbinsäure) wirkt antioxidativ, unterstützt die Kollagensynthese, verbessert die Eisenresorption und stärkt das Immunsystem. Empfehlung: 95–110 mg/Tag.",
-            scientific: "L-Ascorbinsäure ist ein wasserlösliches Antioxidans und Elektronendonor für Hydroxylasen (Prokollagen-Hydroxylierung → Kollagen-Tripelhelix). Als Reduktionsmittel regeneriert es α-Tocopherol (Vitamin E). Hohe Dosen (>1 g/Tag) fördern Oxalat-Bildung und erhöhen das Nierenstein-Risiko."
+            kids: "Vitamin C hilft deinem Körper, sich gegen Erkältungen zu wehren — wie ein Schutzschild. Paprika, Erdbeeren und Zitrusfrüchte stecken voller Vitamin C.",
+            adults: "Vitamin C (Ascorbinsäure) wirkt als Antioxidans, unterstützt die Bildung von Kollagen im Bindegewebe, verbessert die Eisenaufnahme aus der Nahrung und stärkt das Immunsystem. Richtwerte liegen bei rund 95–110 mg täglich.",
+            scientific: "L-Ascorbinsäure ist ein wasserlösliches Antioxidans und dient als Elektronendonor für Hydroxylasen, die bei der Kollagen-Tripelhelix-Bildung Prolin und Lysin hydroxylieren. Als Reduktionsmittel regeneriert es außerdem oxidiertes Vitamin E. Sehr hohe Dosen (über 1 g/Tag) begünstigen die Oxalatbildung und damit das Risiko für Nierensteine."
         ),
 
         "vitaminB12": NutrientEntry(
-            kids: "Vitamin B12 hält deine Nerven fit und hilft beim Blutbilden — es steckt vor allem in Fleisch, Fisch und Milch. Wer kein tierisches Essen isst, braucht es als Zusatz.",
-            adults: "Vitamin B12 (Cobalamin) ist essenziell für die Myelinsynthese und Blutbildung. Ein Mangel verursacht neurologische Schäden und megaloblastäre Anämie. Vorkommen: ausschließlich in tierischen Produkten.",
-            scientific: "Cobalamine (Methylcobalamin, Adenosylcobalamin) sind Cofaktoren der Methionin-Synthase (Homocystein → Methionin) und L-Methylmalonyl-CoA-Mutase. Mangel akkumuliert Methylmalonyl-CoA (neurotoxisch) und erhöht Homocystein (kardiovaskuläres Risiko). Intrinsic Factor (Magenparietalzellen) ist für intestinale Absorption obligat."
+            kids: "Vitamin B12 hält deine Nerven fit und hilft, neues Blut zu bilden. Es steckt vor allem in Fleisch, Fisch und Milchprodukten — wer darauf verzichtet, braucht es als Ergänzung.",
+            adults: "Vitamin B12 (Cobalamin) wird für den Aufbau der Nervenhüllen und für die Blutbildung gebraucht. Ein Mangel kann Nervenschäden und eine besondere Form von Blutarmut verursachen. Es kommt praktisch ausschließlich in tierischen Lebensmitteln vor.",
+            scientific: "Die Cobalamin-Formen Methylcobalamin und Adenosylcobalamin sind Cofaktoren der Methionin-Synthase (Umwandlung von Homocystein zu Methionin) sowie der L-Methylmalonyl-CoA-Mutase. Bei einem Mangel reichert sich neurotoxisches Methylmalonyl-CoA an, und der Homocysteinspiegel steigt. Die intestinale Aufnahme setzt intrinsischen Faktor aus den Belegzellen des Magens voraus."
         ),
     ]
 
