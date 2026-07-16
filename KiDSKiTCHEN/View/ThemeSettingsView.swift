@@ -2,8 +2,9 @@
 //  ThemeSettingsView.swift
 //  KiDSKiTCHEN
 //
-//  Design-Einstellungen: 8 Farbstyles × 4 Glassstufen × 4 Loop-Geschwindigkeiten.
-//  Alle Änderungen wirken sofort (ThemeSettings.shared ist @Observable).
+//  Design-Einstellungen: 8 Farbstyles + drei stufenlose Regler
+//  (Karten-Deckkraft / Hintergrund-Bewegung / Ecken-Radius).
+//  Alle Änderungen wirken sofort (ThemeSettings.shared @Observable).
 //
 
 import SwiftUI
@@ -18,9 +19,10 @@ struct ThemeSettingsView: View {
             themeGrid
             glassSection
             loopSection
+            radiusSection
         }
         .navigationTitle("Design")
-        .kkTransparentNavBar()
+        .navigationBarTitleDisplayMode(.large)
     }
 
     // MARK: Theme-Grid (8 Karten)
@@ -44,33 +46,54 @@ struct ThemeSettingsView: View {
         }
     }
 
-    // MARK: Glas-Stufe
+    // MARK: Karten-Oberfläche
+    // Links = Klar (0, Hintergrund sichtbar) · Rechts = Aus (1, solide Karte).
     private var glassSection: some View {
         KKSection(title: "Karten-Oberfläche", systemImage: "square.on.square") {
-            Picker("Glas-Stufe", selection: $settings.glassLevel) {
-                ForEach(GlassLevel.allCases) { level in
-                    Text(level.label).tag(level)
-                }
+            Slider(value: $settings.cardOpacity, in: 0...1)
+                .tint(settings.theme.accent)
+            HStack {
+                Text("Klar").font(.caption2.bold()).foregroundStyle(.secondary)
+                Spacer()
+                Text("Aus").font(.caption2.bold()).foregroundStyle(.secondary)
             }
-            .pickerStyle(.segmented)
-            Text("Aus: solide Kartenfarbe · Stufen: Glasscheiben-Effekt")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("Klar: Hintergrund scheint durch · Aus: solide Karte ohne Durchblick")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
-    // MARK: Loop-Geschwindigkeit
+    // MARK: Hintergrund-Bewegung
+    // Links = Aus (0, statisch) · Rechts = Lebhaft (1, 30s Drift).
     private var loopSection: some View {
         KKSection(title: "Hintergrund-Bewegung", systemImage: "arrow.2.circlepath") {
-            Picker("Loop-Geschwindigkeit", selection: $settings.loopSpeed) {
-                ForEach(LoopSpeed.allCases) { speed in
-                    Text(speed.label).tag(speed)
-                }
+            Slider(value: $settings.loopFactor, in: 0...1)
+                .tint(settings.theme.accent)
+            HStack {
+                Text("Aus").font(.caption2.bold()).foregroundStyle(.secondary)
+                Spacer()
+                Text("Lebhaft").font(.caption2.bold()).foregroundStyle(.secondary)
             }
-            .pickerStyle(.segmented)
-            Text("Der Hintergrund-Gradient dreht sich sanft im Endlos-Loop.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("Aus: statischer Hintergrund · Lebhaft: schnelle Drift-Bewegung")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: Ecken-Radius
+    // Links = Eckig (8 pt) · Rechts = Pillen (36 pt).
+    private var radiusSection: some View {
+        KKSection(title: "Ecken-Radius", systemImage: "rectangle.roundedtop") {
+            Slider(value: Binding(
+                get: { Double(settings.cardCornerRadius) },
+                set: { settings.cardCornerRadius = CGFloat($0) }
+            ), in: 8...36)
+                .tint(settings.theme.accent)
+            HStack {
+                Text("Eckig").font(.caption2.bold()).foregroundStyle(.secondary)
+                Spacer()
+                Text("Pillen").font(.caption2.bold()).foregroundStyle(.secondary)
+            }
+            Text("Wirkt auf alle Karten und Innen-Elemente.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -81,7 +104,11 @@ private struct ThemeCard: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @State private var settings: ThemeSettings = .shared
+
     var body: some View {
+        let r = settings.cardCornerRadius
+
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 // Vorschau-Gradient
@@ -90,7 +117,7 @@ private struct ThemeCard: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: r))
                 .frame(height: 100)
 
                 // Akzent-Streifen unten
@@ -125,7 +152,7 @@ private struct ThemeCard: View {
             }
             .frame(height: 100)
             .overlay {
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: r)
                     .stroke(isSelected ? theme.accent : Color.clear, lineWidth: 3)
             }
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)

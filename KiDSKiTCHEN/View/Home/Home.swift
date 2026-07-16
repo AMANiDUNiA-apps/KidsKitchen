@@ -171,12 +171,15 @@ struct Home: View {
         .searchable(text: $search, prompt: "Rezept suchen")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) { filterMenu }
-            ToolbarItem(placement: .primaryAction) {
+            // .topBarTrailing → eigene Kapsel links vom Gear (.primaryAction)
+            ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     NewRecipe(newRecipe: .emptyMock)
                 } label: { Image(systemName: "plus") }
+                .accessibilityLabel("Neues Rezept")
             }
         }
+        .kkSettingsGear()
     }
 
     // MARK: Wochen-Karussell (Teil D)

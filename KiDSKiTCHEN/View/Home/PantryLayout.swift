@@ -59,6 +59,7 @@ struct PantryBigCard: View {
     let amount: Int?
     let onSingle: () -> Void
     let onDouble: () -> Void
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
             HStack(spacing: 16) {
@@ -90,13 +91,17 @@ struct PantryBigCard: View {
             .frame(maxWidth: .infinity)
             .background(
                 inStock ? ingredient.category.color.opacity(0.18)
-                        : Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 20)
+                        : settings.theme.cardSurface,
+                in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                    .strokeBorder(
+                        inStock ? ingredient.category.color : settings.theme.cardStroke,
+                        lineWidth: inStock ? 2 : 1
+                    )
             }
+            .shadow(color: settings.theme.shadowColor, radius: 3, y: 1)
             .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(ingredient.name)
@@ -113,6 +118,7 @@ struct PantryListRow: View {
     let amount: Int?
     let onSingle: () -> Void
     let onDouble: () -> Void
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
             HStack(spacing: 14) {
@@ -138,8 +144,8 @@ struct PantryListRow: View {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
             .background(
-                inStock ? ingredient.category.color.opacity(0.14) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 14)
+                inStock ? ingredient.category.color.opacity(0.14) : settings.theme.cardSurface.opacity(0.6),
+                in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
             )
             .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
             .accessibilityElement(children: .combine)

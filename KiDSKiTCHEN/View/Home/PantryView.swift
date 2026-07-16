@@ -113,7 +113,7 @@ struct PantryView: View {
             }
         }
         .navigationTitle("Vorratsschrank")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 // „Ansicht ändern" — schaltet reihum durch die Layouts (Jay testet
@@ -219,6 +219,7 @@ private struct PantryTile: View {
     let onSingle: () -> Void
     let onDouble: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
             ZStack(alignment: .topTrailing) {
@@ -242,12 +243,15 @@ private struct PantryTile: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     inStock ? ingredient.category.color.opacity(0.18)
-                            : Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 18)
+                            : settings.theme.cardSurface,
+                    in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
                 )
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18)
-                        .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                        .strokeBorder(
+                            inStock ? ingredient.category.color : settings.theme.cardStroke,
+                            lineWidth: inStock ? 2 : 1
+                        )
                 }
 
                 // Immer vorhanden, nur ein-/ausgeblendet — so löst der Wechsel

@@ -11,7 +11,7 @@
 //  KKAnimatedBackground liefert einen MeshGradient-Hintergrund (8×8 = 64 Punkte).
 //  Außenring (28 Punkte) ist immer fest — die 6×6 = 36 Innenpunkte driften mit
 //  zwei überlagerten Sinus-Komponenten (Drift > Gitterabstand → Überlappungen).
-//  Respektiert accessibilityReduceMotion, scenePhase und LoopSpeed == .off.
+//  Respektiert accessibilityReduceMotion, scenePhase und loopFactor == 0.
 //
 
 import SwiftUI
@@ -21,14 +21,14 @@ import SwiftUI
 /// die 6×6 = 36 Innenpunkte driften mit zwei überlagerten Sinus-Komponenten
 /// (irrrationales Frequenzverhältnis → quasi-periodisch). Drift-Amplitude 0,18
 /// überschreitet den Gitterabstand 1/7 ≈ 0,143 bewusst → Überlappungen erzeugen
-/// Falt- und Wirbelmuster. Stoppt bei Reduce Motion / Hintergrund / LoopSpeed .off.
+/// Falt- und Wirbelmuster. Stoppt bei Reduce Motion / Hintergrund / loopFactor == 0.
 struct KKAnimatedBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var settings: ThemeSettings = .shared
 
     private var isPaused: Bool {
-        reduceMotion || settings.loopSpeed == .off || scenePhase != .active
+        reduceMotion || settings.isLoopPaused || scenePhase != .active
     }
 
     var body: some View {
@@ -36,7 +36,7 @@ struct KKAnimatedBackground: View {
         let colors = Self.meshColors(for: theme)
 
         TimelineView(.animation(paused: isPaused)) { context in
-            let duration = settings.loopSpeed.duration
+            let duration = settings.loopDuration
             let t = duration > 0
                 ? context.date.timeIntervalSinceReferenceDate / duration * 2 * .pi
                 : 0.0
@@ -121,47 +121,34 @@ struct KKAnimatedBackground: View {
 /// Abgerundete Karten-Hülle (ersetzt die frühere List-Row + `.listRowBackground`).
 /// Clippt den Inhalt bewusst NICHT — Elemente dürfen überstehen (z. B. das
 /// Portionen-Rad, dessen runde Enden sonst an der Kante „abgehackt" wirkten).
-/// Oberfläche richtet sich nach ThemeSettings.glassLevel:
-///   none   → solide Kartenfarbe (theme.cardSurface) + Rand + Schatten
-///   subtle → .ultraThinMaterial + Rand
-///   medium → .thinMaterial     + Rand
-///   strong → .regularMaterial  + Rand
+/// Oberfläche: theme.cardSurface mit stufenloser Deckkraft aus ThemeSettings.cardOpacity
+///   (0 = Klar, Hintergrund scheint durch · 1 = Aus, solide Fläche).
 struct KKCard<Content: View>: View {
     var padding: CGFloat = 16
-    var cornerRadius: CGFloat = 18
+    /// -1 = nutzt den Wert aus ThemeSettings.cardCornerRadius (Default). Nur für
+    /// Sonderfälle überschreiben (z. B. sehr kleine Innen-Karten).
+    var cornerRadius: CGFloat = -1
     @ViewBuilder var content: Content
 
     @State private var settings: ThemeSettings = .shared
 
     var body: some View {
-        let theme = settings.theme
-        let glass = settings.glassLevel
+        let theme   = settings.theme
+        let opacity = settings.cardOpacity
+        let r       = cornerRadius >= 0 ? cornerRadius : settings.cardCornerRadius
 
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
             .background {
-                cardBackground(cornerRadius: cornerRadius, theme: theme, glass: glass)
+                RoundedRectangle(cornerRadius: r)
+                    .fill(theme.cardSurface.opacity(opacity))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(theme.cardStroke, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: r)
+                    .stroke(theme.cardStroke.opacity(max(0.25, opacity)), lineWidth: 1.5)
             }
-            .shadow(color: theme.shadowColor, radius: 5, x: 0, y: 2)
-    }
-
-    @ViewBuilder
-    private func cardBackground(cornerRadius: CGFloat, theme: KKTheme, glass: GlassLevel) -> some View {
-        switch glass {
-        case .none:
-            RoundedRectangle(cornerRadius: cornerRadius).fill(theme.cardSurface)
-        case .subtle:
-            RoundedRectangle(cornerRadius: cornerRadius).fill(.ultraThinMaterial)
-        case .medium:
-            RoundedRectangle(cornerRadius: cornerRadius).fill(.thinMaterial)
-        case .strong:
-            RoundedRectangle(cornerRadius: cornerRadius).fill(.regularMaterial)
-        }
+            .shadow(color: theme.shadowColor.opacity(opacity), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -242,7 +229,7 @@ struct KKDeleteButton: View {
 
 // MARK: - KKScroll
 /// Vertikaler Grund-Container: ScrollView + LazyVStack mit einheitlichem Rand.
-/// Hintergrund: KKAnimatedBackground (Theme-Farben + LoopSpeed).
+/// Hintergrund: KKAnimatedBackground (Theme-Farben + loopFactor).
 struct KKScroll<Content: View>: View {
     var spacing: CGFloat = 16
     var horizontalPadding: CGFloat = 16
@@ -257,6 +244,7 @@ struct KKScroll<Content: View>: View {
             .padding(.vertical, 12)
         }
         .background { KKAnimatedBackground().ignoresSafeArea() }
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
 
@@ -266,6 +254,35 @@ extension View {
     /// Inhalt läuft beim Scrollen sichtbar unter Zurück-Knopf & Co. durch.
     func kkTransparentNavBar() -> some View {
         toolbarBackground(.hidden, for: .navigationBar)
+    }
+
+    /// Gear-Button ganz rechts in der Navigationsleiste, öffnet ThemeSettingsView.
+    /// Selbstständig: eigener @State, kein Binding erforderlich.
+    func kkSettingsGear() -> some View {
+        modifier(KKSettingsGearModifier())
+    }
+}
+
+// MARK: - Settings-Gear-Modifier
+private struct KKSettingsGearModifier: ViewModifier {
+    @State private var showSettings = false
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                // .primaryAction = semantisch rechts außen → eigene Kapsel in iOS 26,
+                // getrennt von .topBarTrailing-Items wie dem + Knopf.
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Design-Einstellungen")
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                NavigationStack { ThemeSettingsView() }
+                    .presentationDragIndicator(.visible)
+            }
     }
 }
 

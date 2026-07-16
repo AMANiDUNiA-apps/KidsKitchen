@@ -79,12 +79,14 @@ struct ShoppingListView: View {
         .navigationTitle("Einkaufsliste")
         .kkTransparentNavBar()
         .toolbar {
+            // .topBarTrailing → eigene Kapsel, Gear (.primaryAction) bleibt rechts davon
             if prefs.shopping.contains(where: \.done) {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Erledigte löschen") { prefs.clearDoneShopping() }
                 }
             }
         }
+        .kkSettingsGear()
     }
 
     // MARK: Bedarf-Knopf (Teil A)

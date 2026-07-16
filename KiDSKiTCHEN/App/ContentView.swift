@@ -32,6 +32,8 @@ struct ContentView: View {
         .tint(settings.theme.accent)
         .preferredColorScheme(settings.theme.isDark ? .dark : .light)
         .environment(\.locale, Locale(identifier: "de_DE"))
+        // TabBar: Theme-Hintergrundfarbe statt iOS-Standard-Frosted-Weiß.
+        .toolbarBackground(settings.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
             set: { presented in if !presented { hasOnboarded = true } }
@@ -46,24 +48,21 @@ struct ContentView: View {
 // sind eigene KKCards mit Symbol, Titel und Chevron.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         KKScroll {
             navCard("Offline gespeichert", symbol: "arrow.down.circle", tint: .orange) {
                 SavedRecipesView()
             }
-            navCard("Vorratsschrank", symbol: "cabinet", tint: .green) {
-                PantryView()
-            }
             navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
                 PreferencesView()
             }
-
+            navCard("Vorratsschrank", symbol: "cabinet", tint: .green) {
+                PantryView()
+            }
             navCard("Saisonkalender", symbol: "leaf", tint: .green) {
                 SeasonalCalendarView()
-            }
-            navCard("Design", symbol: "paintpalette", tint: .purple) {
-                ThemeSettingsView()
             }
             navCard("Rezept importieren", symbol: "sparkles", tint: .indigo) {
                 RecipeImportView()
@@ -80,6 +79,7 @@ private struct MoreView: View {
         }
         .navigationTitle("Mehr")
         .kkTransparentNavBar()
+        .kkSettingsGear()
     }
 
     private func navCard<Destination: View>(
@@ -96,7 +96,7 @@ private struct MoreView: View {
         KKCard {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: settings.cardInnerRadius)
                         .fill(tint.opacity(0.15))
                         .frame(width: 40, height: 40)
                     Image(systemName: symbol)

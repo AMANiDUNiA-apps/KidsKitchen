@@ -10,7 +10,7 @@
 //   • Aus dem Wochenplan mit `day` → Antippen ordnet das Rezept dem Tag zu (addToPlan).
 //   • Aus dem Vorratsschrank ohne `day` → Antippen öffnet die Rezept-Detailansicht.
 //
-//  Eigener Container (KKCard-artige Zeilen), kein `List` (Jay §UI-Bauweise).
+//  Theme-aware (16.7.): KKAnimatedBackground, KKCard-Stil für Zeilen.
 //
 
 import SwiftUI
@@ -20,11 +20,11 @@ struct CookableSuggestionsView: View {
     var day: Weekday?
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
+    @State private var settings: ThemeSettings = .shared
     @Environment(\.dismiss) private var dismiss
 
     private var matches: [CookableMatch] {
         var all = prefs.cookableSuggestions(from: viewModel.recipes)
-        // Aus dem Wochenplan: schon für DIESEN Tag geplante Rezepte ausblenden.
         if let day {
             let planned = Set(prefs.plannedRecipes(day))
             all = all.filter { !planned.contains($0.recipe.name) }
@@ -34,7 +34,9 @@ struct CookableSuggestionsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                KKAnimatedBackground().ignoresSafeArea()
+
                 if prefs.pantry.isEmpty {
                     empty("Vorrat ist leer",
                           "Leg zuerst etwas in den Vorratsschrank — dann schlage ich passende Rezepte vor.")
@@ -44,17 +46,15 @@ struct CookableSuggestionsView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 10) {
-                            ForEach(matches) { match in
-                                row(match)
-                            }
+                            ForEach(matches) { match in row(match) }
                         }
                         .padding(16)
                     }
-                    .background(Color(.systemGroupedBackground))
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationTitle("Was kann ich kochen?")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Schließen") { dismiss() }
@@ -92,7 +92,7 @@ struct CookableSuggestionsView: View {
         let color = match.recipe.category?.color ?? .orange
         return HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: settings.cardInnerRadius)
                     .fill(color.opacity(0.15))
                     .frame(width: 44, height: 44)
                 Image(systemName: match.recipe.category?.symbolName ?? "fork.knife")
@@ -111,8 +111,13 @@ struct CookableSuggestionsView: View {
                 .foregroundStyle(color)
         }
         .padding(12)
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 14))
+        .background(settings.theme.cardSurface,
+                    in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                .strokeBorder(settings.theme.cardStroke, lineWidth: 1)
+        }
+        .shadow(color: settings.theme.shadowColor, radius: 3, y: 1)
         .contentShape(Rectangle())
     }
 

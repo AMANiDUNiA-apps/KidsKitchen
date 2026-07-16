@@ -81,6 +81,7 @@ struct WeekPlanView: View {
         .background { KKAnimatedBackground().ignoresSafeArea() }
         .navigationTitle("Wochenplan")
         .kkTransparentNavBar()
+        .kkSettingsGear()
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy(duration: 0.25), value: selectedDay)
         .sheet(item: $addTarget) { day in

@@ -2,7 +2,7 @@
 //  ThemeRepository.swift
 //  KiDSKiTCHEN
 //
-//  Kapselt UserDefaults für die drei Design-Einstellungen.
+//  Kapselt UserDefaults für die Design-Einstellungen.
 //  Views greifen NICHT direkt auf UserDefaults — nur über ThemeSettings (ViewModel).
 //
 
@@ -14,9 +14,10 @@ final class ThemeRepository {
     private init() {}
 
     private enum Keys {
-        static let themeID    = "kk.theme.id"
-        static let glassLevel = "kk.theme.glassLevel"
-        static let loopSpeed  = "kk.theme.loopSpeed"
+        static let themeID          = "kk.theme.id"
+        static let cardOpacity      = "kk.theme.cardOpacity"
+        static let loopFactor       = "kk.theme.loopFactor"
+        static let cardCornerRadius = "kk.theme.cardCornerRadius"
     }
 
     var themeID: String {
@@ -24,13 +25,30 @@ final class ThemeRepository {
         set { defaults.set(newValue, forKey: Keys.themeID) }
     }
 
-    var glassLevel: GlassLevel {
-        get { GlassLevel(rawValue: defaults.integer(forKey: Keys.glassLevel)) ?? .none }
-        set { defaults.set(newValue.rawValue, forKey: Keys.glassLevel) }
+    /// 0.0 = Klar (Hintergrund sichtbar) · 1.0 = Aus (solide Karte). Default 1.0.
+    var cardOpacity: Double {
+        get {
+            guard defaults.object(forKey: Keys.cardOpacity) != nil else { return 1.0 }
+            return defaults.double(forKey: Keys.cardOpacity)
+        }
+        set { defaults.set(newValue, forKey: Keys.cardOpacity) }
     }
 
-    var loopSpeed: LoopSpeed {
-        get { LoopSpeed(rawValue: defaults.integer(forKey: Keys.loopSpeed)) ?? .off }
-        set { defaults.set(newValue.rawValue, forKey: Keys.loopSpeed) }
+    /// 0.0 = Aus (statisch) · 1.0 = Lebhaft (30s/Zyklus). Default 0.0.
+    var loopFactor: Double {
+        get {
+            guard defaults.object(forKey: Keys.loopFactor) != nil else { return 0.0 }
+            return defaults.double(forKey: Keys.loopFactor)
+        }
+        set { defaults.set(newValue, forKey: Keys.loopFactor) }
+    }
+
+    /// Ecken-Radius in Punkten (8–36). Default 22.0.
+    var cardCornerRadius: CGFloat {
+        get {
+            guard defaults.object(forKey: Keys.cardCornerRadius) != nil else { return 22 }
+            return CGFloat(defaults.double(forKey: Keys.cardCornerRadius))
+        }
+        set { defaults.set(Double(newValue), forKey: Keys.cardCornerRadius) }
     }
 }

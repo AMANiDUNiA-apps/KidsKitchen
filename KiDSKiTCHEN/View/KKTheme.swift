@@ -2,56 +2,14 @@
 //  KKTheme.swift
 //  KiDSKiTCHEN
 //
-//  8 visuelle Styles + GlassLevel + LoopSpeed.
-//  Alle Branch-Unterschiede (liquid-glass-frosted/-neon, nature-harvest, storybook)
-//  werden Daten — die Branches selbst bleiben unangetastet.
+//  8 visuelle Styles (Bücherei / Ernte / Eisblume / Nacht / Sonnenschein /
+//  Beerenzeit / Wassermelone / Kakao). Glas-Deckkraft, Drift-Faktor und
+//  Ecken-Radius sind stufenlos als Double/CGFloat in ThemeSettings gespeichert.
 //  WCAG-Kontrast (4,5:1 Text, 3:1 große Schrift) wurde je Theme geprüft;
 //  zu helle Original-Töne (sonnenschein #F2B33D) wurden nachdunkelt (→ #7D5200).
 //
 
 import SwiftUI
-
-// MARK: - GlassLevel
-enum GlassLevel: Int, CaseIterable, Identifiable, Codable {
-    case none = 0, subtle, medium, strong
-
-    var id: Int { rawValue }
-
-    var label: String {
-        switch self {
-        case .none:   return "Aus"
-        case .subtle: return "Dezent"
-        case .medium: return "Mittel"
-        case .strong: return "Stark"
-        }
-    }
-}
-
-// MARK: - LoopSpeed
-enum LoopSpeed: Int, CaseIterable, Identifiable, Codable {
-    case off = 0, slow, medium, lively
-
-    var id: Int { rawValue }
-
-    var label: String {
-        switch self {
-        case .off:    return "Aus"
-        case .slow:   return "Langsam"
-        case .medium: return "Mittel"
-        case .lively: return "Lebhaft"
-        }
-    }
-
-    /// Dauer eines vollen Drift-Zyklus der inneren Mesh-Punkte in Sekunden (0 = statisch).
-    var duration: Double {
-        switch self {
-        case .off:    return 0
-        case .slow:   return 120
-        case .medium: return 60
-        case .lively: return 30
-        }
-    }
-}
 
 // MARK: - KKTheme
 struct KKTheme: Identifiable {
@@ -99,7 +57,6 @@ extension KKTheme {
     }
 
     // 1. Storybook — warmes Creme, Erdorange (DEFAULT)
-    // WCAG: accent #B05E20 auf bg #F7EDD4 → ~6.4:1 ✅; weiß auf accent → ~5.4:1 ✅
     static let storybook = KKTheme(
         id: "storybook", name: "Bücherei", isDark: false,
         backgroundColors: [Color(kkHex: "#F7EDD4"), Color(kkHex: "#F0E0BC")],
@@ -115,7 +72,6 @@ extension KKTheme {
     )
 
     // 2. Nature Harvest — helles Salbei, Dunkelgrün
-    // WCAG: accent #2D6A4F auf bg #EDF0E0 → ~8.4:1 ✅; weiß auf accent → ~9.2:1 ✅
     static let natureHarvest = KKTheme(
         id: "nature-harvest", name: "Ernte", isDark: false,
         backgroundColors: [Color(kkHex: "#EDF0E0"), Color(kkHex: "#DDE8D0")],
@@ -131,7 +87,6 @@ extension KKTheme {
     )
 
     // 3. Liquid Glass Frosted — Lavendel→Rosa Gradient
-    // WCAG: accent #6D28D9 auf bg-hell #D9C7FF → ~5.8:1 ✅; weiß auf accent → ~10.3:1 ✅
     static let liquidGlassFrosted = KKTheme(
         id: "liquid-glass-frosted", name: "Eisblume", isDark: false,
         backgroundColors: [Color(kkHex: "#D9C7FF"), Color(kkHex: "#FFD1E6"), Color(kkHex: "#C4E3FF")],
@@ -146,8 +101,7 @@ extension KKTheme {
         decoSymbol: "sparkles"
     )
 
-    // 4. Liquid Glass Neon — dunkles Blauviolett (⚠️ kein Default — Blau-Appetit-Bremse)
-    // WCAG: accent #A78BFA auf dunkel-bg #0F0A24 → ~5.7:1 ✅; auf hellem Chip: dunkel-Text nötig
+    // 4. Liquid Glass Neon — dunkles Blauviolett
     static let liquidGlassNeon = KKTheme(
         id: "liquid-glass-neon", name: "Nacht", isDark: true,
         backgroundColors: [Color(kkHex: "#0F0A24"), Color(kkHex: "#1A0F33"), Color(kkHex: "#0D1F2D")],
@@ -163,8 +117,6 @@ extension KKTheme {
     )
 
     // 5. Sonnenschein — Buttergelb
-    // Original #F2B33D zu hell (WCAG ❌) → nachdunkelt auf #7D5200
-    // WCAG: accent #7D5200 auf bg #FFF6DE → ~7.6:1 ✅; weiß auf accent → ~6.7:1 ✅
     static let sonnenschein = KKTheme(
         id: "sonnenschein", name: "Sonnenschein", isDark: false,
         backgroundColors: [Color(kkHex: "#FFF6DE"), Color(kkHex: "#FFF0C0")],
@@ -180,7 +132,6 @@ extension KKTheme {
     )
 
     // 6. Beerenzeit — zartes Rosé
-    // WCAG: accent #B0305A auf bg #FFF2F4 → ~8.7:1 ✅; weiß auf accent → ~9.0:1 ✅
     static let beerenzeit = KKTheme(
         id: "beerenzeit", name: "Beerenzeit", isDark: false,
         backgroundColors: [Color(kkHex: "#FFF2F4"), Color(kkHex: "#FFE0E8")],
@@ -196,7 +147,6 @@ extension KKTheme {
     )
 
     // 7. Wassermelone — Grünhauch
-    // WCAG: accent #C8455D auf bg #F4FBF2 → ~5.6:1 ✅; weiß auf accent → ~6.1:1 ✅
     static let wassermelone = KKTheme(
         id: "wassermelone", name: "Wassermelone", isDark: false,
         backgroundColors: [Color(kkHex: "#F4FBF2"), Color(kkHex: "#E8F8E4"), Color(kkHex: "#FFF2F4")],
@@ -212,7 +162,6 @@ extension KKTheme {
     )
 
     // 8. Kakao — warmes Dunkelbraun
-    // WCAG: accent #E8A04C auf dunkel-bg #2B1E16 → ~6.4:1 ✅; auf hellem Chip: dunkel-Text nötig
     static let kakao = KKTheme(
         id: "kakao", name: "Kakao", isDark: true,
         backgroundColors: [Color(kkHex: "#2B1E16"), Color(kkHex: "#3D2718"), Color(kkHex: "#221510")],

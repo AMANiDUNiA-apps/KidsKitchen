@@ -163,6 +163,7 @@ struct Rezepte: View {
                     }
                 }
                 .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 .accessibilityRepresentation {
                     Stepper("Portionen: \(servings)", value: $servings, in: 1...12)
                 }
