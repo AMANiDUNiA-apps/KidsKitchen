@@ -31,6 +31,7 @@ struct Rezepte: View {
     // Zutatenliste gestaffelt einblenden (nur ohne Reduce-Motion).
     @State private var ingredientsVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismiss) private var dismiss
 
     init(recipe: Recipe) {
         self.recipe = recipe
@@ -122,8 +123,16 @@ struct Rezepte: View {
             // Kurzinfo
             KKSection(title: "Info", systemImage: "info.circle", tint: tint) {
                 if let category = recipe.category {
-                    Label(category.rawValue, systemImage: category.symbolName)
-                        .foregroundStyle(category.color)
+                    // Antippbar (Jay-Entscheid, ChipSelection-Badge): setzt den Home-
+                    // Kategorie-Filter und springt zur gefilterten Liste zurück.
+                    Button {
+                        RecipeCategoryFilter.shared.selected = category
+                        dismiss()
+                    } label: {
+                        CategoryChip(category: category, isSelected: false)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Nach \(category.rawValue) filtern")
                 }
                 if recipe.totalTime > 0 {
                     Label("^[\(recipe.totalTime) Minute](inflect: true)",
