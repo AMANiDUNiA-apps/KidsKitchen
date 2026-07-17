@@ -16,6 +16,7 @@ import UIKit
 struct SavedRecipesView: View {
     @State private var items: [SavedRecipe] = []
     @State private var pendingDelete: SavedRecipe?
+    private var undoManager: UndoManager? { SavedRecipeRepository.shared.undoManager }
 
     var body: some View {
         KKScroll {
@@ -51,6 +52,15 @@ struct SavedRecipesView: View {
             }
         }
         .navigationTitle("Offline gespeichert")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                KKUndoRedoButton(undoManager: undoManager)
+            }
+        }
+        // Löschen ist rückgängig-fähig (ModelContext-UndoManager) — nach Undo/Redo
+        // die Liste neu laden, da SwiftData das `items`-Array nicht selbst aktualisiert.
+        .onReceive(NotificationCenter.default.publisher(for: .NSUndoManagerDidUndoChange, object: undoManager)) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSUndoManagerDidRedoChange, object: undoManager)) { _ in reload() }
         .task { reload() }
         .confirmationDialog(
             "Dieses Rezept löschen?",
