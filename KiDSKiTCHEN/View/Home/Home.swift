@@ -269,6 +269,7 @@ struct Home: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(.background, in: RoundedRectangle(cornerRadius: 14))
+                .kkFocusBeam(isActive: searchExpanded)
 
                 Button("Fertig") { collapseSearch() }
                     .fontWeight(.semibold)

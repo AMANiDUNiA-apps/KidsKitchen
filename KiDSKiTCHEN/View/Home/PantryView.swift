@@ -33,6 +33,8 @@ struct PantryView: View {
     /// Gewähltes Ansicht-Layout (persistiert — Jays Wahl bleibt über App-Starts).
     @AppStorage("pantryLayout") private var layoutRaw = PantryLayout.grid.rawValue
     private var layout: PantryLayout { PantryLayout(rawValue: layoutRaw) ?? .grid }
+    // Rückgängig/Wiederholen fürs Entfernen aus dem Vorrat (Jay 17.7.).
+    @Environment(\.undoManager) private var undoManager
 
     // Klick-Verhalten der Kacheln (vereinheitlicht, Jay 12.7.):
     // 1× Tap → direkt die Mengen-Scala · 2× Tap → Groß-Bild mit Scala + Details.
@@ -129,6 +131,9 @@ struct PantryView: View {
                 }
                 .accessibilityLabel("Ansicht ändern, aktuell \(layout.title)")
                 .accessibilityHint("Schaltet zur nächsten Ansicht der Zutaten")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                KKUndoRedoButton(undoManager: undoManager)
             }
         }
         .searchable(text: $search, prompt: "Zutat suchen")
@@ -312,6 +317,8 @@ struct PantryAmountControls: View {
     @Bindable var prefs: Preferences
     /// Nach „Sichern"/„Aus dem Vorrat" aufgerufen (Sheet/Cover schließen).
     var onFinish: () -> Void = {}
+    // Rückgängig fürs Entfernen aus dem Vorrat (Jay 17.7., „essentiell").
+    @Environment(\.undoManager) private var undoManager
 
     private var unit: IngredientUnit { ingredient.unit }
     private var step: Int { unit.pantryStep }
@@ -338,7 +345,9 @@ struct PantryAmountControls: View {
                 // sonst würde togglePantry sie versehentlich HINZUFÜGEN.
                 if prefs.hasInPantry(ingredient.name) {
                     Button(role: .destructive) {
+                        let previousAmount = prefs.pantryAmount(ingredient.name)
                         prefs.togglePantry(ingredient.name)
+                        registerPantryRestoreUndo(previousAmount: previousAmount)
                         onFinish()
                     } label: {
                         Label("Aus dem Vorrat", systemImage: "xmark.circle")
@@ -361,6 +370,30 @@ struct PantryAmountControls: View {
             // Auf gespeicherten Wert vorpositionieren (auf Einheiten-Raster gerundet)
             let saved = prefs.pantryAmount(ingredient.name) ?? 0
             tick = min(max(Int((Double(saved) / Double(step)).rounded()), 0), maxTicks)
+        }
+    }
+
+    // MARK: Rückgängig/Wiederholen fürs Entfernen aus dem Vorrat
+    // Symmetrisch registriert (Kavsoft „UndoHelper"-Prinzip): jede Rückgängig-
+    // Aktion registriert beim Ausführen gleich wieder ihr Gegenstück, sonst
+    // würde Wiederholen (Redo) nach einem Undo nicht mehr funktionieren.
+    private func registerPantryRestoreUndo(previousAmount: Int?) {
+        undoManager?.registerUndo(withTarget: prefs) { target in
+            if let previousAmount, previousAmount > 0 {
+                target.setPantryAmount(previousAmount, for: ingredient.name)
+            } else {
+                target.togglePantry(ingredient.name)
+            }
+            registerPantryRemoveUndo()
+        }
+        undoManager?.setActionName("Aus dem Vorrat entfernen")
+    }
+
+    private func registerPantryRemoveUndo() {
+        undoManager?.registerUndo(withTarget: prefs) { target in
+            let previousAmount = target.pantryAmount(ingredient.name)
+            target.togglePantry(ingredient.name)
+            registerPantryRestoreUndo(previousAmount: previousAmount)
         }
     }
 }
@@ -410,6 +443,8 @@ private struct PantryDetailView: View {
                         IngredientImageView(ingredient: ingredient, size: 200)
                             .scaleEffect(appeared ? 1 : 0.6)
                             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: appeared)
+                            // Zum Vergrößern tippen (Jay 17.7.), s. KKZoomableImage.swift.
+                            .kkZoomable()
 
                         Text(ingredient.name)
                             .font(.system(.largeTitle, design: .serif).weight(.bold))

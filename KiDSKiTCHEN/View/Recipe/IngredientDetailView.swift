@@ -25,7 +25,9 @@ struct IngredientDetailView: View {
         HStack(spacing: 14) {
             // Foto der Zutat freistehend (Alpha), ohne farbigen Kreis-Hintergrund
             // (Jay 11.7.: PNGs stehen frei, deutlich größer). Fallback = Kategorie-Symbol.
+            // Zum Vergrößern tippen (Jay 17.7.), s. KKZoomableImage.swift.
             IngredientImageView(ingredient: ingredient, size: 64)
+                .kkZoomable()
             VStack(alignment: .leading, spacing: 4) {
                 Text(ingredient.name).font(.title3.bold())
                 HStack(spacing: 6) {

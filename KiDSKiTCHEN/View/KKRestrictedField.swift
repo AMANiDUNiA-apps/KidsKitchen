@@ -11,7 +11,8 @@
 //  ~/z/Agents/Claude/xCode/kavsoft/RestrictedTF — Filter-Logik unverändert. `characters`
 //  ist eine Sperr-Menge; die erlaubten Zeichen ergeben sich als deren Invertierung
 //  (genau wie in der Vorlage). KKNumberField setzt darauf auf und übersetzt zwischen
-//  Text (de_DE) und dem `Double?`-Wert.
+//  Text (de_DE) und dem `Double?`-Wert. Fokus-Glow (Jay 17.7.): `.kkFocusBeam()`,
+//  s. KKFocusBeam.swift.
 //
 
 import SwiftUI
@@ -52,6 +53,7 @@ struct KKNumberField: View {
     @Binding var value: Double?
     var hint: String = "Menge"
     @State private var text: String = ""
+    @FocusState private var isFocused: Bool
 
     /// Erlaubt sind Ziffern + Komma; alles andere wird herausgefiltert (Sperr-Menge
     /// = Invertierung der erlaubten Zeichen — Vorlagen-Muster).
@@ -62,7 +64,9 @@ struct KKNumberField: View {
             field
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
+                .focused($isFocused)
         }
+        .kkFocusBeam(isActive: isFocused, cornerRadius: 8)
         .onChange(of: text) { _, newValue in
             value = Self.parse(newValue)
         }

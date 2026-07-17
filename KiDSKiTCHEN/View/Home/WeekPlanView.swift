@@ -3,6 +3,14 @@
 //  KiDSKiTCHEN
 //
 //  Wochenplaner: je Wochentag geplante Rezepte, heutiger Tag hervorgehoben.
+//
+//  Weiterbau 4, Teil C — Wochenansicht mit gepinnten Tages-Headern und einem
+//  Wochenstreifen, der mit der Scrollposition mitläuft. Ursprünglich Kavsoft
+//  „CalendarScrollEffect" (native pinnedViews); seit 17.7. auf KKStickySection
+//  umgestellt (Kavsoft „WSSection", Jay: „super für Kalender") — jeder Wochentag
+//  ist ein eigener Abschnitt mit Voll-Header, der beim Scrollen zu einem
+//  Minimiert-Header zusammenfällt, statt nur oben zu kleben.
+//
 //  Weiterbau bau/air (16.7.):
 //  — Datum je Tag (Mo 14.7.) im Streifen + Tages-Header
 //  — Navigation zu vorheriger/nächster Woche (weekOffset)
@@ -87,26 +95,27 @@ struct WeekPlanView: View {
                 .background(settings.theme.headerBackground)
             }
 
-            GeometryReader { geo in
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
-                        ForEach(Weekday.allCases) { day in
-                            Section {
-                                dayContent(day)
-                                    .frame(minHeight: day == Weekday.allCases.last ? geo.size.height - 120 : nil,
-                                           alignment: .top)
-                            } header: {
-                                dayHeader(day)
-                            }
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 12) {
+                    ForEach(Weekday.allCases) { day in
+                        KKStickySection {
+                            dayContent(day)
+                        } header: {
+                            dayHeader(day)
+                        } minimisedHeader: {
+                            dayMinimisedHeader(day)
                         }
                     }
-                    .scrollTargetLayout()
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
                 }
-                .scrollPosition(id: $selectedDay, anchor: .top)
-                .background(.clear)
+                .scrollTargetLayout()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                // Resthöhe, damit auch der letzte Tag ganz nach oben scrollen und
+                // sein Voll-Header/Minimiert-Übergang komplett ablaufen kann.
+                .padding(.bottom, 120)
             }
+            .scrollPosition(id: $selectedDay, anchor: .top)
+            .background(.clear)
         }
         .background { KKAnimatedBackground().ignoresSafeArea() }
         .navigationTitle("Wochenplan")
@@ -214,7 +223,7 @@ struct WeekPlanView: View {
         .background(settings.theme.headerBackground)
     }
 
-    // MARK: Gepinnter Tages-Header
+    // MARK: Voll-Header (Tagesname, Datum, „heute", Anzahl, „+")
     private func dayHeader(_ day: Weekday) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
@@ -241,6 +250,7 @@ struct WeekPlanView: View {
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
+            // Rezept diesem Tag zuordnen (öffnet das inhaltshohe Sheet, Teil B).
             Button {
                 addTarget = day
             } label: {
@@ -255,8 +265,28 @@ struct WeekPlanView: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(settings.theme.headerBackground)
+        // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Minimiert-Header (eine Zeile, blendet ein, sobald der Voll-Header wegscrollt)
+    private func dayMinimisedHeader(_ day: Weekday) -> some View {
+        HStack(spacing: 6) {
+            Text(day.short.uppercased())
+                .font(.caption.bold())
+            if isToday(day) {
+                Circle().fill(settings.theme.accent).frame(width: 5, height: 5)
+            }
+            Spacer(minLength: 0)
+            let count = visibleNames(day).count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.bold())
+            }
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
     }
 
     // MARK: Tages-Inhalt
@@ -269,6 +299,8 @@ struct WeekPlanView: View {
                     Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
                         .foregroundStyle(.tertiary)
                         .font(.subheadline)
+                    // Einstieg „Was kann ich kochen?" (Teil C) — nur an wirklich
+                    // leeren Tagen, nicht wenn nur der Filter leert.
                     if selectedCategories.isEmpty {
                         Button {
                             cookTarget = day
@@ -286,6 +318,8 @@ struct WeekPlanView: View {
                     ForEach(Array(names.enumerated()), id: \.element) { index, name in
                         if index > 0 { Divider() }
                         planRow(name: name, day: day)
+                            // Neu zugeordnetes Rezept (Teil B/„+"-Sheet) ploppt sanft
+                            // hinein (Teil D). Reduce Motion → nur Einblenden.
                             .transition(reduceMotion
                                         ? .opacity
                                         : .scale(scale: 0.85).combined(with: .opacity))
@@ -302,9 +336,11 @@ struct WeekPlanView: View {
         let cooked = prefs.isCooked(day, name)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
+                // Gekocht-Knopf (Teil B): bucht die Zutaten vom Vorrat ab.
                 if let recipe = resolved {
                     cookButton(recipe: recipe, day: day, cooked: cooked)
                 }
+
                 if let recipe = resolved {
                     NavigationLink { Rezepte(recipe: recipe) } label: {
                         HStack {
@@ -329,6 +365,8 @@ struct WeekPlanView: View {
                     }
                 }
             }
+
+            // Ehrlicher Hinweis, wenn beim Kochen Zutaten nicht im Vorrat waren.
             if cooked, let recipe = resolved {
                 let missing = prefs.cookMissingNames(day, recipe: recipe)
                 if !missing.isEmpty {
@@ -345,6 +383,8 @@ struct WeekPlanView: View {
         .padding(.vertical, 4)
     }
 
+    /// Runder Gekocht-Umschalter — leerer Kreis → grüner Haken mit kleinem Bounce
+    /// (W7-D-Muster, Reduce-Motion-sicher).
     private func cookButton(recipe: Recipe, day: Weekday, cooked: Bool) -> some View {
         Button {
             withAnimation(.snappy(duration: 0.25)) {
@@ -370,6 +410,8 @@ struct WeekPlanView: View {
         viewModel.recipes.first { $0.name == name }
     }
 
+    /// Mahlzeit-Kategorien, die in der ganzen Woche tatsächlich geplant sind
+    /// (kanonische Reihenfolge) — nur real vorhandene Chips.
     private var presentCategories: [RecipeCategory] {
         let cats = Set(Weekday.allCases
             .flatMap { prefs.plannedRecipes($0) }
@@ -377,6 +419,8 @@ struct WeekPlanView: View {
         return RecipeCategory.allCases.filter { cats.contains($0) }
     }
 
+    /// Geplante Rezepte eines Tages nach aktivem Kategorie-Filter. Rezepte ohne
+    /// auflösbare Kategorie erscheinen nur, wenn kein Filter aktiv ist.
     private func visibleNames(_ day: Weekday) -> [String] {
         let names = prefs.plannedRecipes(day)
         guard !selectedCategories.isEmpty else { return names }
@@ -387,7 +431,11 @@ struct WeekPlanView: View {
     }
 }
 
-// MARK: - AddRecipeToDaySheet (A2: alle hardcodierten Radii → Theme-Token)
+// MARK: - AddRecipeToDaySheet (Teil B, A2: alle hardcodierten Radii → Theme-Token)
+/// Inhaltshoher Inhalt für das KKDynamicSheet: listet die echten Rezepte, die dem
+/// Tag noch NICHT zugeordnet sind, und ordnet das getippte Rezept zu (addToPlan).
+/// Eigener Container (KKCard-artige Zeilen), kein `List`. Die Liste ist auf den
+/// Inhalt gedeckelt — wenige Rezepte → niedriges Sheet, viele → scrollbar.
 private struct AddRecipeToDaySheet: View {
     let day: Weekday
     @State private var prefs: Preferences = .shared
@@ -396,6 +444,7 @@ private struct AddRecipeToDaySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
+    /// Noch nicht für den Tag geplante Rezepte (optional nach Suche gefiltert).
     private var candidates: [Recipe] {
         let planned = Set(prefs.plannedRecipes(day))
         return viewModel.recipes
@@ -404,6 +453,7 @@ private struct AddRecipeToDaySheet: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    /// Höhe des Treffer-Containers: bis zu 6 Zeilen sichtbar, darüber wird gescrollt.
     private var listHeight: CGFloat { CGFloat(min(candidates.count, 6)) * 60 }
 
     var body: some View {
@@ -426,6 +476,7 @@ private struct AddRecipeToDaySheet: View {
                 .accessibilityLabel("Schließen")
             }
 
+            // Suchfeld erst ab genug Rezepten (sonst unnötig).
             if viewModel.recipes.count > 6 {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)

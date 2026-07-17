@@ -2,8 +2,9 @@
 //  ContentView.swift
 //  KiDSKiTCHEN
 //
-//  TabView-Navigation (bau/air 16.7.):
-//  Rezepte / Zutaten / Woche / Einkaufen / Mehr
+//  TabView-Navigation: Rezepte / Zutaten / Wochenplan / Einkaufen / Mehr.
+//  Leiste: eigene Glas-Kapsel (KKGlassTabBar, Jay-Entscheid 17.7.) statt der
+//  nativen TabView-Leiste — dazu die native Leiste je Tab ausgeblendet.
 //
 //  Rezepte-Tab: Gespeicherte Rezepte über Trailing-Toolbar erreichbar.
 //  Zutaten-Tab: Saisonkalender (Leading) + Filter & Diät (Trailing).
@@ -16,28 +17,37 @@ struct ContentView: View {
     @State private var prefs: Preferences = .shared
     @State private var settings: ThemeSettings = .shared
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
+    @State private var activeTab: KKTab = .recipes
 
     var body: some View {
-        TabView {
-            NavigationStack { RezepteTabRoot() }
-                .tabItem { Label("Rezepte", systemImage: "fork.knife") }
-
-            NavigationStack { ZutatenTabRoot() }
-                .tabItem { Label("Zutaten", systemImage: "basket") }
-
-            NavigationStack { WeekPlanView() }
-                .tabItem { Label("Woche", systemImage: "calendar") }
-                .badge(prefs.plannedCount)
-
-            NavigationStack { ShoppingListView() }
-                .tabItem { Label("Einkaufen", systemImage: "cart") }
-                .badge(prefs.shopping.filter { !$0.done }.count)
-
-            NavigationStack { MoreView() }
-                .tabItem { Label("Mehr", systemImage: "ellipsis") }
+        TabView(selection: $activeTab) {
+            Tab(value: KKTab.recipes) {
+                NavigationStack { RezepteTabRoot() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.ingredients) {
+                NavigationStack { ZutatenTabRoot() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.week) {
+                NavigationStack { WeekPlanView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.shopping) {
+                NavigationStack { ShoppingListView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.more) {
+                NavigationStack { MoreView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
         }
-        .tint(settings.theme.accent)
-        .preferredColorScheme(settings.theme.isDark ? .dark : .light)
+        .tint(Color(red:0.72,green:0.40,blue:0.18))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+        }
         .environment(\.locale, Locale(identifier: "de_DE"))
         .toolbarBackground(settings.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
@@ -45,6 +55,15 @@ struct ContentView: View {
             set: { presented in if !presented { hasOnboarded = true } }
         )) {
             OnboardingView { hasOnboarded = true }
+        }
+    }
+
+    /// Badge-Zahlen je Tab — ersetzt die vorherigen `.badge()`-Modifier der nativen Leiste.
+    private func badgeCount(_ tab: KKTab) -> Int {
+        switch tab {
+        case .week: prefs.plannedCount
+        case .shopping: prefs.shopping.filter { !$0.done }.count
+        default: 0
         }
     }
 }
