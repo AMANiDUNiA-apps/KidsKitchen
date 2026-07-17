@@ -20,6 +20,11 @@
 //  (Kavsoft „DynamicHeightSheet", s. KKDynamicSheet), um dem Tag ein echtes Rezept
 //  zuzuordnen (prefs.addToPlan) — kompakt statt Vollbild.
 //
+//  Kavsoft-Runde 2: der Wochenstreifen schrumpft/verblasst sanft, sobald darunter
+//  gescrollt wird (kkCollapsingOnScroll, zusätzlich zum bestehenden Kollabieren
+//  JE Tag in KKStickySection). KKGooeyRefreshable zieht die Rezeptliste per
+//  Pull-to-Refresh neu vom Server (RecipeListViewModel) — echte Aktion.
+//
 
 import SwiftUI
 
@@ -39,10 +44,13 @@ struct WeekPlanView: View {
     @State private var selectedCategories: [RecipeCategory] = []
     @Namespace private var stripNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Scroll-Offset des Wochenplans — treibt das sanfte Schrumpfen des Wochenstreifens.
+    @State private var scrollOffset: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
             weekStrip
+                .kkCollapsingOnScroll(offset: scrollOffset)
 
             // Kategorie-Filter (Mahlzeit-Art) — nur real geplante Kategorien, ab zwei.
             if presentCategories.count > 1 {
@@ -75,6 +83,14 @@ struct WeekPlanView: View {
             }
             .scrollPosition(id: $selectedDay, anchor: .top)
             .background(Color(.systemGroupedBackground))
+            .onScrollGeometryChange(for: CGFloat.self, of: {
+                $0.contentOffset.y + $0.contentInsets.top
+            }, action: { _, newValue in
+                scrollOffset = newValue
+            })
+            .kkGooeyRefreshable {
+                await viewModel.loadRecipes()
+            }
         }
         .navigationTitle("Wochenplan")
         .kkTransparentNavBar()
