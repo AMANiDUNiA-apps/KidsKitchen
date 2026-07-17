@@ -3,6 +3,8 @@
 //  KiDSKiTCHEN
 //
 //  TabView-Navigation: Rezepte / Wochenplan / Einkaufen / Mehr.
+//  Leiste: eigene Glas-Kapsel (KKGlassTabBar, Jay-Entscheid 17.7.) statt der
+//  nativen TabView-Leiste — dazu die native Leiste je Tab ausgeblendet.
 //
 
 import SwiftUI
@@ -11,30 +13,48 @@ struct ContentView: View {
     @State private var prefs: Preferences = .shared
     // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
+    @State private var activeTab: KKTab = .recipes
 
     var body: some View {
-        TabView {
-            NavigationStack { Home() }
-                .tabItem { Label("Rezepte", systemImage: "fork.knife") }
-
-            NavigationStack { WeekPlanView() }
-                .tabItem { Label("Woche", systemImage: "calendar") }
-                .badge(prefs.plannedCount)
-
-            NavigationStack { ShoppingListView() }
-                .tabItem { Label("Einkaufen", systemImage: "cart") }
-                .badge(prefs.shopping.filter { !$0.done }.count)
-
-            NavigationStack { MoreView() }
-                .tabItem { Label("Mehr", systemImage: "ellipsis") }
+        TabView(selection: $activeTab) {
+            Tab(value: KKTab.recipes) {
+                NavigationStack { Home() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.week) {
+                NavigationStack { WeekPlanView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.shopping) {
+                NavigationStack { ShoppingListView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.more) {
+                NavigationStack { MoreView() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
         }
         .tint(.orange)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+        }
         .environment(\.locale, Locale(identifier: "de_DE"))
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
             set: { presented in if !presented { hasOnboarded = true } }
         )) {
             OnboardingView { hasOnboarded = true }
+        }
+    }
+
+    /// Badge-Zahlen je Tab — ersetzt die vorherigen `.badge()`-Modifier der nativen Leiste.
+    private func badgeCount(_ tab: KKTab) -> Int {
+        switch tab {
+        case .week: prefs.plannedCount
+        case .shopping: prefs.shopping.filter { !$0.done }.count
+        default: 0
         }
     }
 }
