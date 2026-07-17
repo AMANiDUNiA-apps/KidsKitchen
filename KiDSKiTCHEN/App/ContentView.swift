@@ -34,7 +34,7 @@ struct ContentView: View {
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-        .tint(.orange)
+        .tint(Color(red:0.72,green:0.40,blue:0.18))
         .safeAreaInset(edge: .bottom, spacing: 0) {
             KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
                 .padding(.horizontal, 20)
