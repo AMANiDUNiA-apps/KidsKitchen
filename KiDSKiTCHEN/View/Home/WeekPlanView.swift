@@ -7,10 +7,11 @@
 //  Rezepte werden aus der Detailansicht („Zum Wochenplan") hinzugefügt.
 //
 //  Weiterbau 4, Teil C — Wochenansicht mit gepinnten Tages-Headern und einem
-//  Wochenstreifen, der mit der Scrollposition mitläuft. Vorlage: Kavsoft
-//  „CalendarScrollEffect" (Balaji Venkatesh) — pinnedViews-Sticky-Header +
-//  scrollPosition-Sync, hier auf das echte Weekday/Plan-Modell adaptiert
-//  (deutsche Wochentage, KEINE erfundenen Kalender-Termine).
+//  Wochenstreifen, der mit der Scrollposition mitläuft. Ursprünglich Kavsoft
+//  „CalendarScrollEffect" (native pinnedViews); seit 17.7. auf KKStickySection
+//  umgestellt (Kavsoft „WSSection", Jay: „super für Kalender") — jeder Wochentag
+//  ist ein eigener Abschnitt mit Voll-Header, der beim Scrollen zu einem
+//  Minimiert-Header zusammenfällt, statt nur oben zu kleben.
 //
 //  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`. Entfernen als
 //  sichtbarer Lösch-Knopf (Jay 11.7., Herz-Knopf-Referenz).
@@ -53,29 +54,27 @@ struct WeekPlanView: View {
                 .background(Color(.systemGroupedBackground))
             }
 
-            GeometryReader { geo in
-                ScrollView(.vertical) {
-                    // Native pinned section headers erzeugen den Klebe-Effekt (Kavsoft).
-                    LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
-                        ForEach(Weekday.allCases) { day in
-                            Section {
-                                dayContent(day)
-                                    // Der letzte Tag braucht Resthöhe, damit er beim
-                                    // Antippen ganz nach oben scrollen kann.
-                                    .frame(minHeight: day == Weekday.allCases.last ? geo.size.height - 120 : nil,
-                                           alignment: .top)
-                            } header: {
-                                dayHeader(day)
-                            }
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 12) {
+                    ForEach(Weekday.allCases) { day in
+                        KKStickySection {
+                            dayContent(day)
+                        } header: {
+                            dayHeader(day)
+                        } minimisedHeader: {
+                            dayMinimisedHeader(day)
                         }
                     }
-                    .scrollTargetLayout()
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
                 }
-                .scrollPosition(id: $selectedDay, anchor: .top)
-                .background(Color(.systemGroupedBackground))
+                .scrollTargetLayout()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                // Resthöhe, damit auch der letzte Tag ganz nach oben scrollen und
+                // sein Voll-Header/Minimiert-Übergang komplett ablaufen kann.
+                .padding(.bottom, 120)
             }
+            .scrollPosition(id: $selectedDay, anchor: .top)
+            .background(Color(.systemGroupedBackground))
         }
         .navigationTitle("Wochenplan")
         .kkTransparentNavBar()
@@ -132,7 +131,7 @@ struct WeekPlanView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    // MARK: Gepinnter Tages-Header
+    // MARK: Voll-Header (Tagesname, „heute", Anzahl, „+")
     private func dayHeader(_ day: Weekday) -> some View {
         HStack(spacing: 8) {
             Text(day.rawValue)
@@ -163,51 +162,65 @@ struct WeekPlanView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Rezept zu \(day.rawValue) hinzufügen")
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Deckt beim Kleben den durchscrollenden Inhalt zu.
-        .background(Color(.systemGroupedBackground))
         // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Minimiert-Header (eine Zeile, blendet ein, sobald der Voll-Header wegscrollt)
+    private func dayMinimisedHeader(_ day: Weekday) -> some View {
+        HStack(spacing: 6) {
+            Text(day.short.uppercased())
+                .font(.caption.bold())
+            if day == Weekday.today {
+                Circle().fill(Color.orange).frame(width: 5, height: 5)
+            }
+            Spacer(minLength: 0)
+            let count = visibleNames(day).count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.bold())
+            }
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
     }
 
     // MARK: Tages-Inhalt
     @ViewBuilder
     private func dayContent(_ day: Weekday) -> some View {
         let names = visibleNames(day)
-        KKCard {
-            if names.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
-                        .foregroundStyle(.tertiary)
-                        .font(.subheadline)
-                    // Einstieg „Was kann ich kochen?" (Teil C) — nur an wirklich
-                    // leeren Tagen, nicht wenn nur der Filter leert.
-                    if selectedCategories.isEmpty {
-                        Button {
-                            cookTarget = day
-                        } label: {
-                            Label("Was kann ich kochen?", systemImage: "sparkles")
-                                .font(.system(.subheadline, design: .serif).weight(.medium))
-                                .foregroundStyle(.orange)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen, und ordnet sie \(day.rawValue) zu")
+        if names.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(selectedCategories.isEmpty ? "nichts geplant" : "nichts in dieser Auswahl")
+                    .foregroundStyle(.tertiary)
+                    .font(.subheadline)
+                // Einstieg „Was kann ich kochen?" (Teil C) — nur an wirklich
+                // leeren Tagen, nicht wenn nur der Filter leert.
+                if selectedCategories.isEmpty {
+                    Button {
+                        cookTarget = day
+                    } label: {
+                        Label("Was kann ich kochen?", systemImage: "sparkles")
+                            .font(.system(.subheadline, design: .serif).weight(.medium))
+                            .foregroundStyle(.orange)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen, und ordnet sie \(day.rawValue) zu")
                 }
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(names.enumerated()), id: \.element) { index, name in
-                        if index > 0 { Divider() }
-                        planRow(name: name, day: day)
-                            // Neu zugeordnetes Rezept (Teil B/„+"-Sheet) ploppt sanft
-                            // hinein (Teil D). Reduce Motion → nur Einblenden.
-                            .transition(reduceMotion
-                                        ? .opacity
-                                        : .scale(scale: 0.85).combined(with: .opacity))
-                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VStack(spacing: 0) {
+                ForEach(Array(names.enumerated()), id: \.element) { index, name in
+                    if index > 0 { Divider() }
+                    planRow(name: name, day: day)
+                        // Neu zugeordnetes Rezept (Teil B/„+"-Sheet) ploppt sanft
+                        // hinein (Teil D). Reduce Motion → nur Einblenden.
+                        .transition(reduceMotion
+                                    ? .opacity
+                                    : .scale(scale: 0.85).combined(with: .opacity))
                 }
             }
         }
