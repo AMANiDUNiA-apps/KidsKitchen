@@ -2,23 +2,31 @@
 //  ContentView.swift
 //  KiDSKiTCHEN
 //
-//  TabView-Navigation: Rezepte / Wochenplan / Einkaufen / Mehr.
+//  TabView-Navigation: Rezepte / Zutaten / Wochenplan / Einkaufen / Mehr.
 //  Leiste: eigene Glas-Kapsel (KKGlassTabBar, Jay-Entscheid 17.7.) statt der
 //  nativen TabView-Leiste — dazu die native Leiste je Tab ausgeblendet.
+//
+//  Rezepte-Tab: Gespeicherte Rezepte über Trailing-Toolbar erreichbar.
+//  Zutaten-Tab: Saisonkalender (Leading) + Filter & Diät (Trailing).
+//  Mehr: nur noch Rezept-Import + Einführung.
 //
 
 import SwiftUI
 
 struct ContentView: View {
     @State private var prefs: Preferences = .shared
-    // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
+    @State private var settings: ThemeSettings = .shared
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
     @State private var activeTab: KKTab = .recipes
 
     var body: some View {
         TabView(selection: $activeTab) {
             Tab(value: KKTab.recipes) {
-                NavigationStack { Home() }
+                NavigationStack { RezepteTabRoot() }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            Tab(value: KKTab.ingredients) {
+                NavigationStack { ZutatenTabRoot() }
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
             Tab(value: KKTab.week) {
@@ -41,6 +49,7 @@ struct ContentView: View {
                 .padding(.bottom, 6)
         }
         .environment(\.locale, Locale(identifier: "de_DE"))
+        .toolbarBackground(settings.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
             set: { presented in if !presented { hasOnboarded = true } }
@@ -59,35 +68,71 @@ struct ContentView: View {
     }
 }
 
-// MARK: - MoreView
-// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — die Menüpunkte
-// sind eigene KKCards mit Symbol, Titel und Chevron.
+// MARK: - Rezepte-Tab
+/// Home als Haupt-Screen; Gespeicherte Rezepte über den Trailing-Knopf erreichbar.
+private struct RezepteTabRoot: View {
+    var body: some View {
+        Home()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SavedRecipesView()) {
+                        Label("Gespeichert", systemImage: "arrow.down.circle")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Offline gespeicherte Rezepte")
+                }
+            }
+    }
+}
+
+// MARK: - Zutaten-Tab
+/// Vorratsschrank als Haupt-Screen; Saisonkalender (Leading) + Filter & Diät (Trailing).
+private struct ZutatenTabRoot: View {
+    var body: some View {
+        PantryView()
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(destination: SeasonalCalendarView()) {
+                        Label("Saisonkalender", systemImage: "leaf")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Saisonkalender")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: PreferencesView()) {
+                        Label("Filter & Diät", systemImage: "slider.horizontal.3")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Filter & Diät")
+                }
+            }
+    }
+}
+
+// MARK: - MoreView (schlank — Rezept-Import + Einführung)
+// Gespeichert → Rezepte-Tab · Filter & Diät → Zutaten-Tab
+// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         KKScroll {
-            navCard("Offline gespeichert", symbol: "arrow.down.circle", tint: .orange) {
-                SavedRecipesView()
-            }
-            navCard("Vorratsschrank", symbol: "cabinet", tint: .green) {
-                PantryView()
-            }
-            navCard("Filter & Diät", symbol: "slider.horizontal.3", tint: .blue) {
-                PreferencesView()
+            navCard("Rezept importieren", symbol: "sparkles", tint: .indigo) {
+                RecipeImportView()
             }
 
             Button {
-                // Startet das Erst-Start-Onboarding erneut (ContentView-Cover reagiert).
                 hasOnboarded = false
             } label: {
-                menuRow("Einführung nochmal ansehen", symbol: "sparkles", tint: .pink, showsChevron: false)
+                menuRow("Einführung nochmal ansehen", symbol: "wand.and.stars", tint: .pink, showsChevron: false)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .navigationTitle("Mehr")
         .kkTransparentNavBar()
+        .kkSettingsGear()
     }
 
     private func navCard<Destination: View>(
@@ -104,7 +149,7 @@ private struct MoreView: View {
         KKCard {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: settings.cardInnerRadius)
                         .fill(tint.opacity(0.15))
                         .frame(width: 40, height: 40)
                     Image(systemName: symbol)

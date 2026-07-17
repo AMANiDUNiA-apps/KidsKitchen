@@ -63,6 +63,7 @@ struct IngredientDetailView: View {
 struct IngredientFactsSections: View {
     let ingredient: Ingredient
     @State private var depth: NutritionDepth = .mini
+    @State private var mode: NutritionMode = .kids
 
     private var facts: NutritionFacts? { NutritionFacts.bls(for: ingredient.name) }
 
@@ -75,8 +76,15 @@ struct IngredientFactsSections: View {
                     }
                     .pickerStyle(.segmented)
 
+                    Picker("Erklär-Ebene", selection: $mode) {
+                        ForEach(NutritionMode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
                     IngredientNutritionBars(facts: facts, depth: depth)
                         .padding(.top, 4)
+
+                    NutrientExplainerRows(depth: depth, mode: mode)
                 }
 
                 if !facts.highlights.isEmpty {
@@ -102,6 +110,58 @@ struct IngredientFactsSections: View {
             }
         }
         .animation(.spring(response: 0.3), value: depth)
+        .animation(.spring(response: 0.25), value: mode)
+    }
+}
+
+// MARK: - NutrientExplainerRows
+/// Erklär-Texte zu den sichtbaren Nährstoffen (passt sich an NutritionDepth + NutritionMode an).
+private struct NutrientExplainerRows: View {
+    let depth: NutritionDepth
+    let mode: NutritionMode
+
+    private var visibleKeys: [String] {
+        switch depth {
+        case .mini:
+            return ["kcal", "protein", "fat", "carbs"]
+        case .mid:
+            return ["kcal", "protein", "fat", "carbs", "sugar", "fiber"]
+        case .full:
+            return ["kcal", "protein", "fat", "carbs", "sugar", "fiber",
+                    "sodium", "calcium", "iron", "magnesium", "potassium",
+                    "vitaminC", "vitaminB12"]
+        }
+    }
+
+    private let labels: [String: String] = [
+        "kcal": "Kalorien", "protein": "Eiweiß", "fat": "Fett",
+        "carbs": "Kohlenhydrate", "sugar": "Zucker", "fiber": "Ballaststoffe",
+        "sodium": "Natrium", "calcium": "Calcium", "iron": "Eisen",
+        "magnesium": "Magnesium", "potassium": "Kalium",
+        "vitaminC": "Vitamin C", "vitaminB12": "Vitamin B12"
+    ]
+
+    var body: some View {
+        let entries = visibleKeys.compactMap { key -> (String, String)? in
+            guard let text = NutrientExplainer.explain(key, mode: mode) else { return nil }
+            return (labels[key] ?? key, text)
+        }
+        if !entries.isEmpty {
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(entries, id: \.0) { label, text in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(label)
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(text)
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
     }
 }
 

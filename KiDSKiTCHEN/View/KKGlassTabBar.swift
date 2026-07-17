@@ -17,13 +17,14 @@
 import SwiftUI
 
 // MARK: - KKTab
-/// Die vier Hauptbereiche der App (bestehende Ziele aus ContentView, unverändert).
+/// Die fünf Hauptbereiche der App (Zutaten-Tab aus bau/air ergänzt, 17.7.).
 enum KKTab: CaseIterable, Hashable {
-    case recipes, week, shopping, more
+    case recipes, ingredients, week, shopping, more
 
     var title: String {
         switch self {
         case .recipes: "Rezepte"
+        case .ingredients: "Zutaten"
         case .week: "Woche"
         case .shopping: "Einkaufen"
         case .more: "Mehr"
@@ -33,6 +34,7 @@ enum KKTab: CaseIterable, Hashable {
     var symbol: String {
         switch self {
         case .recipes: "fork.knife"
+        case .ingredients: "basket"
         case .week: "calendar"
         case .shopping: "cart"
         case .more: "ellipsis"

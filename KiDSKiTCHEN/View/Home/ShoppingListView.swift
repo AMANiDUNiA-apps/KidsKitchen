@@ -2,19 +2,15 @@
 //  ShoppingListView.swift
 //  KiDSKiTCHEN
 //
-//  Created by Claude Fable 5 on 03.07.26.
 //  Einkaufsliste: aus Rezepten gesammelte Zutaten, abhakbar, persistent.
 //
 //  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List` — KKScroll + KKCard.
 //  Abhaken (Tippen aufs Häkchen) und ein sichtbarer Lösch-Knopf pro Zeile
-//  (KKDeleteButton, Jay 11.7. Herz-Knopf-Referenz) — kein verstecktes Wischen.
-//  Einzelposten sind geringwertig/wiederherstellbar → Löschen direkt, ohne Abfrage;
-//  „Erledigte löschen" bleibt als Sammel-Aktion in der Toolbar.
+//  (KKDeleteButton, Jay 11.7.) — kein verstecktes Wischen.
 //
-//  Weiterbau 8, Teil A: Bedarf aus dem Wochenplan gegen den Vorrat rechnen. Was
-//  fehlt, kommt als klar erkennbarer Vorschlags-Posten (mit Herkunft) dazu — Hand-
-//  Einträge bleiben unangetastet. Abhaken eines Vorschlags bucht die Menge in den
-//  Vorrat (setShoppingDone).
+//  bau/air (16.7.):
+//  — A2: needBanner cornerRadius → settings.cardCornerRadius (Token)
+//  — A5: Zutaten-Bilder in jeder Zeile (gleiche PNGs wie Vorratsschrank)
 //
 
 import SwiftUI
@@ -22,14 +18,12 @@ import SwiftUI
 struct ShoppingListView: View {
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
-    /// Aktive Kategorie-Filter (leer = alles zeigen). Mehrfachauswahl.
+    @State private var settings: ThemeSettings = .shared
     @State private var selectedCategories: [IngredientCategory] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // Rückgängig/Wiederholen fürs Löschen einzelner Posten (Jay 17.7.).
     @Environment(\.undoManager) private var undoManager
 
-    /// Kategorien, die in der Liste tatsächlich vorkommen — in kanonischer
-    /// Reihenfolge (echte Einkaufslisten-Kategorien).
     private var presentCategories: [IngredientCategory] {
         let present = Set(prefs.shopping.map(\.resolvedCategory))
         return IngredientCategory.allCases.filter { present.contains($0) }
@@ -39,12 +33,17 @@ struct ShoppingListView: View {
         selectedCategories.isEmpty || selectedCategories.contains(item.resolvedCategory)
     }
 
-    /// Offener Nachkauf-Bedarf aus dem Wochenplan (für den Bedarf-Knopf).
     private var shortfallCount: Int { prefs.shortfallCount(recipes: viewModel.recipes) }
+
+    /// Versucht, die passende Seed-Zutat für einen Einkaufsposten zu finden.
+    /// Der Text kann eine Menge enthalten (z. B. „250 g Mehl") — Fuzzy-Match über
+    /// IngredientImageMapping greift auch hier zuverlässig.
+    private func ingredient(for item: ShoppingItem) -> Ingredient? {
+        Ingredient.seed.first { item.text.localizedStandardContains($0.name) }
+    }
 
     var body: some View {
         KKScroll {
-            // Bedarf aus dem Wochenplan berechnen — nur wenn überhaupt geplant ist.
             if prefs.plannedCount > 0 {
                 needBanner
                     .padding(.horizontal, 4)
@@ -60,7 +59,6 @@ struct ShoppingListView: View {
                 }
                 .padding(.top, 24)
             } else {
-                // Kategorie-Filter — nur zeigen, wenn es mehr als eine Kategorie gibt
                 if presentCategories.count > 1 {
                     CategoryFilterChips(categories: presentCategories) { selection in
                         selectedCategories = selection
@@ -85,11 +83,12 @@ struct ShoppingListView: View {
                 KKUndoRedoButton(undoManager: undoManager)
             }
             if prefs.shopping.contains(where: \.done) {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Erledigte löschen") { prefs.clearDoneShopping() }
                 }
             }
         }
+        .kkSettingsGear()
     }
 
     // MARK: Löschen mit Rückgängig/Wiederholen
@@ -116,7 +115,7 @@ struct ShoppingListView: View {
         }
     }
 
-    // MARK: Bedarf-Knopf (Teil A)
+    // MARK: Bedarf-Knopf — A2: cornerRadius → settings.cardCornerRadius
     private var needBanner: some View {
         Button {
             withAnimation(.snappy(duration: 0.25)) {
@@ -126,7 +125,7 @@ struct ShoppingListView: View {
             HStack(spacing: 12) {
                 Image(systemName: "sparkles")
                     .font(.title3)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(settings.theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Bedarf aus dem Wochenplan")
                         .font(.system(.subheadline, design: .serif).weight(.semibold))
@@ -140,10 +139,11 @@ struct ShoppingListView: View {
                 Spacer(minLength: 8)
                 Image(systemName: "arrow.clockwise")
                     .font(.footnote.bold())
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(settings.theme.accent)
             }
             .padding(14)
-            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            .background(settings.theme.accent.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -151,10 +151,11 @@ struct ShoppingListView: View {
         .accessibilityValue(shortfallCount == 0 ? "nichts nachzukaufen" : "\(shortfallCount) Zutaten fehlen")
     }
 
-    // MARK: Zeile
+    // MARK: Zeile — A5: Zutaten-Bild links vom Haken
     @ViewBuilder
     private func shoppingRow(_ item: Binding<ShoppingItem>) -> some View {
         let value = item.wrappedValue
+        let ing = ingredient(for: value)
         HStack(spacing: 10) {
             Button {
                 prefs.setShoppingDone(value.id, done: !value.done)
@@ -163,22 +164,26 @@ struct ShoppingListView: View {
                     Image(systemName: value.done ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
                         .foregroundStyle(value.done ? .green : .secondary)
-                        // Abhaken-Feedback (Teil D): weiches Kreis→Haken-Wechseln
-                        // + kleiner Bounce, aus/ein je Reduce Motion.
                         .contentTransition(.symbolEffect(.replace))
                         .symbolEffect(.bounce, value: reduceMotion ? false : value.done)
+
+                    // Zutaten-Bild (gleiche PNGs wie Vorratsschrank, 46/46 Mapping)
+                    if let ing {
+                        IngredientImageView(ingredient: ing, size: 32)
+                            .frame(width: 32, height: 32)
+                    }
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(value.text)
                             .strikethrough(value.done)
                             .foregroundStyle(value.done ? .secondary : .primary)
-                        // Vorschlags-Herkunft klar erkennbar (Teil A).
                         if value.suggested, let origin = value.origin {
                             HStack(spacing: 4) {
                                 Image(systemName: "sparkles").font(.caption2)
                                 Text(origin).lineLimit(1)
                             }
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(settings.theme.accent)
                         }
                     }
                     Spacer(minLength: 8)

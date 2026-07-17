@@ -18,6 +18,7 @@ import SwiftUI
 
 struct PantryView: View {
     @State private var prefs: Preferences = .shared
+    @State private var settings: ThemeSettings = .shared
     @State private var search = ""
     /// Aktive Kategorie-Filter (leer = alles zeigen). Mehrfachauswahl.
     @State private var selectedCategories: [IngredientCategory] = []
@@ -77,16 +78,17 @@ struct PantryView: View {
                     showCookable = true
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "sparkles").font(.title3).foregroundStyle(.orange)
+                        Image(systemName: "sparkles").font(.title3).foregroundStyle(settings.theme.accent)
                         Text("Was kann ich kochen?")
                             .font(.system(.subheadline, design: .serif).weight(.semibold))
                             .foregroundStyle(.primary)
                         Spacer(minLength: 8)
                         Image(systemName: "chevron.right")
-                            .font(.footnote.bold()).foregroundStyle(.orange)
+                            .font(.footnote.bold()).foregroundStyle(settings.theme.accent)
                     }
                     .padding(14)
-                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                    .background(settings.theme.accent.opacity(0.10),
+                                in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -115,7 +117,7 @@ struct PantryView: View {
             }
         }
         .navigationTitle("Vorratsschrank")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 // „Ansicht ändern" — schaltet reihum durch die Layouts (Jay testet
@@ -149,10 +151,16 @@ struct PantryView: View {
     }
 
     // MARK: - Layout-abhängige Zutaten-Darstellung
-    /// Rendert die Zutaten eines Abschnitts im aktuell gewählten Layout.
-    /// Alle Varianten teilen dieselbe Tap-Logik (Vorrat umschalten/Menge).
-    @ViewBuilder
+    /// Wrapper: wendet die gewählte Übergangs-Animation an wenn das Layout wechselt.
     private func sectionItems(_ items: [Ingredient]) -> some View {
+        sectionContent(items)
+            .id(layout)
+            .transition(settings.pantryTransition.transition)
+            .animation(settings.pantryTransition.animation, value: layout)
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ items: [Ingredient]) -> some View {
         switch layout {
         case .grid:
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
@@ -224,6 +232,7 @@ private struct PantryTile: View {
     let onSingle: () -> Void
     let onDouble: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
             ZStack(alignment: .topTrailing) {
@@ -247,12 +256,15 @@ private struct PantryTile: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     inStock ? ingredient.category.color.opacity(0.18)
-                            : Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 18)
+                            : settings.theme.cardSurface,
+                    in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
                 )
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18)
-                        .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                        .strokeBorder(
+                            inStock ? ingredient.category.color : settings.theme.cardStroke,
+                            lineWidth: inStock ? 2 : 1
+                        )
                 }
 
                 // Immer vorhanden, nur ein-/ausgeblendet — so löst der Wechsel

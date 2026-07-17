@@ -2,48 +2,42 @@
 //  PantryLayout.swift
 //  KiDSKiTCHEN
 //
-//  Umschaltbare Ansicht-Varianten für die Zutaten-Übersicht (Jay 11.7.:
-//  bestehendes Magazin-Raster war unübersichtlich, Bilder zu klein für eine
-//  Kinder-App). Vorlage: BigMountainStudio „Matched Geometry Effect"-Kapitel
-//  (List / LazyVStack / LazyVGrid / VStack / HStack). Alle Varianten mit den
-//  echten freigestellten PNGs, groß dargestellt. Umschalten über den
-//  „Ansicht ändern"-Knopf, damit Jay am Gerät durchschalten und die
-//  Gewinner-Variante bestimmen kann.
+//  Umschaltbare Ansicht-Varianten für die Zutaten-Übersicht.
+//
+//  bau/air (16.7.) — A6: plus.circle Icon entfernt.
+//  War: „inStock → grüner Haken, sonst rotes +". Jetzt: nur der grüne Haken (opacity
+//  0→1), eingeblendet mit spring-Animation — klar lesbar, ohne verwirrende Aktion.
 //
 
 import SwiftUI
 
 // MARK: - PantryLayout
-/// Die wählbaren Layouts der Zutaten-Übersicht. `rawValue` wird persistiert
-/// (@AppStorage), damit Jays Wahl über App-Starts bleibt.
 enum PantryLayout: String, CaseIterable, Identifiable {
-    case grid      // LazyVGrid, 2 gleich große Karten pro Reihe (großes Bild)
-    case cards     // Eine große Karte pro Reihe (Bild links, Name/Menge rechts)
-    case list      // Kompakte Liste (mittleres Bild + Name + Status)
-    case gallery   // Horizontale Galerie je Kategorie (zum Wischen)
+    case grid
+    case cards
+    case list
+    case gallery
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .grid: "Raster"
-        case .cards: "Große Karten"
-        case .list: "Liste"
+        case .grid:    "Raster"
+        case .cards:   "Große Karten"
+        case .list:    "Liste"
         case .gallery: "Galerie"
         }
     }
 
-    /// SF-Symbol für den Umschalt-Knopf.
     var symbol: String {
         switch self {
-        case .grid: "square.grid.2x2"
-        case .cards: "rectangle.grid.1x2"
-        case .list: "list.bullet"
+        case .grid:    "square.grid.2x2"
+        case .cards:   "rectangle.grid.1x2"
+        case .list:    "list.bullet"
         case .gallery: "rectangle.stack"
         }
     }
 
-    /// Nächstes Layout im Kreis (für den „Ansicht ändern"-Knopf).
     var next: PantryLayout {
         let all = Self.allCases
         let i = all.firstIndex(of: self) ?? 0
@@ -52,15 +46,19 @@ enum PantryLayout: String, CaseIterable, Identifiable {
 }
 
 // MARK: - PantryBigCard (Variante „Große Karten")
-/// Eine breite Karte pro Reihe: großes Zutat-Foto links, Name + Menge rechts.
+/// Breite Karte: großes Zutat-Foto links, Name + Menge rechts.
+/// Kein plus-Icon mehr — der grüne Haken blendet sich beim Hinzufügen sanft ein.
 struct PantryBigCard: View {
     let ingredient: Ingredient
     let inStock: Bool
     let amount: Int?
     let onSingle: () -> Void
     let onDouble: () -> Void
+    @State private var settings: ThemeSettings = .shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        ZStack(alignment: .topTrailing) {
             HStack(spacing: 16) {
                 IngredientImageView(ingredient: ingredient, size: 84)
 
@@ -81,40 +79,55 @@ struct PantryBigCard: View {
                     }
                 }
                 Spacer(minLength: 8)
-
-                Image(systemName: inStock ? "checkmark.circle.fill" : "plus.circle")
-                    .font(.title2)
-                    .foregroundStyle(inStock ? .green : ingredient.category.color)
             }
             .padding(14)
             .frame(maxWidth: .infinity)
             .background(
                 inStock ? ingredient.category.color.opacity(0.18)
-                        : Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 20)
+                        : settings.theme.cardSurface,
+                in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(inStock ? ingredient.category.color : .clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                    .strokeBorder(
+                        inStock ? ingredient.category.color : settings.theme.cardStroke,
+                        lineWidth: inStock ? 2 : 1
+                    )
             }
-            .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(ingredient.name)
-            .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
-            .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
+            .shadow(color: settings.theme.shadowColor, radius: 3, y: 1)
+
+            // Grüner Haken blendet sich bei inStock==true ein (kein plus mehr)
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(.green)
+                .padding(10)
+                .opacity(inStock ? 1 : 0)
+                .scaleEffect(inStock ? 1 : 0.5)
+                .symbolEffect(.bounce, value: reduceMotion ? false : inStock)
+                .animation(.spring(response: 0.3), value: inStock)
+        }
+        .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ingredient.name)
+        .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+        .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
     }
 }
 
 // MARK: - PantryListRow (Variante „Liste")
-/// Kompakte Zeile: mittleres Foto + Name, Status rechts. Für schnelles Scannen.
+/// Kompakte Zeile: mittleres Foto + Name, Status rechts.
+/// Kein plus-Icon — Haken blendet sich ein wie bei der Karte.
 struct PantryListRow: View {
     let ingredient: Ingredient
     let inStock: Bool
     let amount: Int?
     let onSingle: () -> Void
     let onDouble: () -> Void
+    @State private var settings: ThemeSettings = .shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        ZStack(alignment: .trailing) {
             HStack(spacing: 14) {
                 IngredientImageView(ingredient: ingredient, size: 48)
 
@@ -130,21 +143,32 @@ struct PantryListRow: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(ingredient.category.color)
                 }
-                Image(systemName: inStock ? "checkmark.circle.fill" : "plus.circle")
-                    .font(.title3)
-                    .foregroundStyle(inStock ? .green : ingredient.category.color)
+
+                // Platz für den Haken (damit Text nicht darunter liegt)
+                Color.clear.frame(width: 28)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
             .background(
-                inStock ? ingredient.category.color.opacity(0.14) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 14)
+                inStock ? ingredient.category.color.opacity(0.14) : settings.theme.cardSurface.opacity(0.6),
+                in: RoundedRectangle(cornerRadius: settings.cardCornerRadius)
             )
-            .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(ingredient.name)
-            .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
-            .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
+
+            // Grüner Haken
+            Image(systemName: "checkmark.circle.fill")
+                .font(.body)
+                .foregroundStyle(.green)
+                .padding(.trailing, 12)
+                .opacity(inStock ? 1 : 0)
+                .scaleEffect(inStock ? 1 : 0.5)
+                .symbolEffect(.bounce, value: reduceMotion ? false : inStock)
+                .animation(.spring(response: 0.3), value: inStock)
+        }
+        .pantryTapGestures(onSingle: onSingle, onDouble: onDouble)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ingredient.name)
+        .accessibilityValue(inStock ? "im Vorrat" : "nicht im Vorrat")
+        .accessibilityHint("Einmal tippen für die Menge, zweimal für die Details")
     }
 }

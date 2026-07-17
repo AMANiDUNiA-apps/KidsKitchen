@@ -19,13 +19,19 @@ struct NewRecipe: View {
         _newRecipe = State(initialValue: newRecipe)
     }
 
-    /// Leeren Editor für ein frisches Rezept (einmalig, überschreibt die Mock-Vorbelegung).
+    /// Editor für ein frisches Rezept vorbereiten (einmalig).
+    /// - Leerer Name (Home-Flow): Editor leeren, überschreibt Mock-Vorbelegung.
+    /// - Draft bringt bereits Zutaten/Schritte mit (Import-Flow): Editor damit befüllen,
+    ///   sonst würden `save()` alte/leere Editor-Reste statt der importierten Daten speichern.
     private func prepareIfNeeded() {
         guard !didPrepare else { return }
         didPrepare = true
         if newRecipe.name.isEmpty {
             viewModel.recipeIngredients = []
             viewModel.recipeInstructions = []
+        } else if !newRecipe.ingredients.isEmpty || !newRecipe.instructions.isEmpty {
+            viewModel.recipeIngredients = newRecipe.ingredients
+            viewModel.recipeInstructions = newRecipe.instructions
         }
     }
 
@@ -35,9 +41,10 @@ struct NewRecipe: View {
         recipe.instructions = viewModel.recipeInstructions
         recipe.nutrition = recipe.computedNutrition   // Nährwerte aus den Zutaten
         listViewModel.add(recipe)
-        // Editor für das nächste Rezept leeren
+        // Editor für das nächste Rezept leeren + isSelected-Flags zurücksetzen
         viewModel.recipeIngredients = []
         viewModel.recipeInstructions = []
+        viewModel.resetAllSelected()
         dismiss()
     }
 

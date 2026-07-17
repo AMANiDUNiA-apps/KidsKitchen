@@ -124,26 +124,31 @@ class RecipeEditorViewModel {
         isShowingIngredients = false
     }
 
+    // MARK: - resetAllSelected
+    /// Setzt alle isSelected-Flags auf den globalen Ingredient-Instanzen zurück.
+    /// Muss nach jedem Abbruch/Speichern des Rezept-Editors aufgerufen werden,
+    /// damit der Picker beim nächsten Öffnen sauber startet.
+    func resetAllSelected() {
+        for ingredient in ingredients { ingredient.isSelected = false }
+    }
+
     // MARK: - removeAllRecipeIngredients
     func removeAllRecipeIngredients() {
         recipeIngredients.removeAll()
-        checkStatus()
+        resetAllSelected()
         isShowingIngredients = false
     }
 
     func checkStatus() {
-        for i in recipeIngredients {
-            checkIngredientStatus(ingredient: i.ingredient)
+        let selected = Set(recipeIngredients.map { $0.ingredient.name })
+        for ingredient in ingredients {
+            ingredient.isSelected = selected.contains(ingredient.name)
         }
     }
 
     // MARK: - checkIngredientStatus
     func checkIngredientStatus(ingredient: Ingredient) {
-        if recipeIngredients.contains(where: { $0.ingredient.name == ingredient.name}) {
-            ingredient.isSelected = true
-        } else {
-            ingredient.isSelected = false
-        }
+        ingredient.isSelected = recipeIngredients.contains(where: { $0.ingredient.name == ingredient.name })
     }
 
     // MARK: - getRecipeIngredient
