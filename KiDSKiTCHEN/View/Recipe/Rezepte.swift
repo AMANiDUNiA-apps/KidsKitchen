@@ -220,6 +220,18 @@ struct Rezepte: View {
 
             // Zubereitung — Schritt für Schritt, mit kindersicherer Slide-Bestätigung
             if !recipe.instructions.isEmpty {
+                // Einstieg in den Kochmodus (Vollansicht, Mini-Leiste über der Tabbar).
+                Button {
+                    KKCookingSession.shared.start(recipe)
+                } label: {
+                    Label("Kochen starten", systemImage: "flame.fill")
+                        .font(.system(.headline, design: .serif))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(tint)
+                .controlSize(.large)
+
                 CookingSteps(instructions: recipe.instructions,
                              tint: recipe.category?.color ?? .orange)
             }

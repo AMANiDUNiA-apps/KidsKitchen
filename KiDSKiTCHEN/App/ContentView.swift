@@ -14,6 +14,8 @@ struct ContentView: View {
     // Erst-Start-Onboarding: einmalig, aus „Mehr" erneut auslösbar.
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
     @State private var activeTab: KKTab = .recipes
+    // Kochmodus-Zustand (app-weit) — für die Mini-Leiste über der Tabbar.
+    @State private var cookingSession = KKCookingSession.shared
 
     var body: some View {
         TabView(selection: $activeTab) {
@@ -35,10 +37,13 @@ struct ContentView: View {
             }
         }
         .tint(Color(red:0.72,green:0.40,blue:0.18))
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
+        .safeAreaInset(edge: .bottom, spacing: 10) {
+            VStack(spacing: 10) {
+                KKCookingMiniBar(session: cookingSession)
+                KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 6)
         }
         .environment(\.locale, Locale(identifier: "de_DE"))
         .fullScreenCover(isPresented: Binding(
@@ -46,6 +51,9 @@ struct ContentView: View {
             set: { presented in if !presented { hasOnboarded = true } }
         )) {
             OnboardingView { hasOnboarded = true }
+        }
+        .fullScreenCover(isPresented: $cookingSession.isFullScreenPresented) {
+            KKCookingModeView(session: cookingSession)
         }
     }
 
