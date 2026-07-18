@@ -299,6 +299,7 @@ struct WeekPlanView: View {
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
+            // Rezept diesem Tag zuordnen (öffnet das inhaltshohe Sheet, Teil B).
             Button {
                 addTarget = day
             } label: {
@@ -309,6 +310,8 @@ struct WeekPlanView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Rezept zu \(day.rawValue) hinzufügen")
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Header bleibt Überschrift, „+" ist ein eigenständiges Bedienelement.
         // Kein eigener Hintergrund mehr — KKStickySection zeichnet die
@@ -355,8 +358,6 @@ struct WeekPlanView: View {
                             .font(.system(.subheadline, design: .serif).weight(.medium))
                             .foregroundStyle(settings.theme.accent)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Zeigt Rezepte, die zu deinem Vorrat passen, und ordnet sie \(day.rawValue) zu")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -382,9 +383,11 @@ struct WeekPlanView: View {
         let cooked = prefs.isCooked(day, name, week: weekStart)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
+                // Gekocht-Knopf (Teil B): bucht die Zutaten vom Vorrat ab.
                 if let recipe = resolved {
                     cookButton(recipe: recipe, day: day, cooked: cooked)
                 }
+
                 if let recipe = resolved {
                     NavigationLink { Rezepte(recipe: recipe) } label: {
                         HStack {
@@ -409,6 +412,8 @@ struct WeekPlanView: View {
                     }
                 }
             }
+
+            // Ehrlicher Hinweis, wenn beim Kochen Zutaten nicht im Vorrat waren.
             if cooked, let recipe = resolved {
                 let missing = prefs.cookMissingNames(day, recipe: recipe, week: weekStart)
                 if !missing.isEmpty {
@@ -425,6 +430,8 @@ struct WeekPlanView: View {
         .padding(.vertical, 4)
     }
 
+    /// Runder Gekocht-Umschalter — leerer Kreis → grüner Haken mit kleinem Bounce
+    /// (W7-D-Muster, Reduce-Motion-sicher).
     private func cookButton(recipe: Recipe, day: Weekday, cooked: Bool) -> some View {
         Button {
             withAnimation(.snappy(duration: 0.25)) {
@@ -450,6 +457,8 @@ struct WeekPlanView: View {
         viewModel.recipes.first { $0.name == name }
     }
 
+    /// Mahlzeit-Kategorien, die in der ganzen Woche tatsächlich geplant sind
+    /// (kanonische Reihenfolge) — nur real vorhandene Chips.
     private var presentCategories: [RecipeCategory] {
         let cats = Set(Weekday.allCases
             .flatMap { prefs.plannedRecipes($0, week: weekStart) }
@@ -457,6 +466,8 @@ struct WeekPlanView: View {
         return RecipeCategory.allCases.filter { cats.contains($0) }
     }
 
+    /// Geplante Rezepte eines Tages nach aktivem Kategorie-Filter. Rezepte ohne
+    /// auflösbare Kategorie erscheinen nur, wenn kein Filter aktiv ist.
     private func visibleNames(_ day: Weekday) -> [String] {
         let names = prefs.plannedRecipes(day, week: weekStart)
         guard !selectedCategories.isEmpty else { return names }
@@ -472,7 +483,11 @@ struct WeekPlanView: View {
     }
 }
 
-// MARK: - AddRecipeToDaySheet (A2: alle hardcodierten Radii → Theme-Token)
+// MARK: - AddRecipeToDaySheet (Teil B, A2: alle hardcodierten Radii → Theme-Token)
+/// Inhaltshoher Inhalt für das KKDynamicSheet: listet die echten Rezepte, die dem
+/// Tag noch NICHT zugeordnet sind, und ordnet das getippte Rezept zu (addToPlan).
+/// Eigener Container (KKCard-artige Zeilen), kein `List`. Die Liste ist auf den
+/// Inhalt gedeckelt — wenige Rezepte → niedriges Sheet, viele → scrollbar.
 private struct AddRecipeToDaySheet: View {
     let day: Weekday
     /// Wochenstart der angezeigten Woche — Hinzufügen trifft GENAU diese Woche.
@@ -483,6 +498,7 @@ private struct AddRecipeToDaySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
+    /// Noch nicht für den Tag geplante Rezepte (optional nach Suche gefiltert).
     private var candidates: [Recipe] {
         let planned = Set(prefs.plannedRecipes(day, week: week))
         return viewModel.recipes
@@ -491,6 +507,7 @@ private struct AddRecipeToDaySheet: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    /// Höhe des Treffer-Containers: bis zu 6 Zeilen sichtbar, darüber wird gescrollt.
     private var listHeight: CGFloat { CGFloat(min(candidates.count, 6)) * 60 }
 
     var body: some View {
@@ -513,6 +530,7 @@ private struct AddRecipeToDaySheet: View {
                 .accessibilityLabel("Schließen")
             }
 
+            // Suchfeld erst ab genug Rezepten (sonst unnötig).
             if viewModel.recipes.count > 6 {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)

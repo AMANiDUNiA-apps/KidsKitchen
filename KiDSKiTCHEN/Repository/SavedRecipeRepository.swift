@@ -18,20 +18,23 @@ import SwiftData
 final class SavedRecipeRepository {
     static let shared = SavedRecipeRepository()
 
-    private let container: ModelContainer?
-    private var context: ModelContext? { container?.mainContext }
+    private let container: ModelContainer
+    private var context: ModelContext { container.mainContext }
 
     /// Für Rückgängig/Wiederholen-Buttons in der Ansicht (SavedRecipesView).
-    var undoManager: UndoManager? { context?.undoManager }
+    var undoManager: UndoManager? { context.undoManager }
 
     private init() {
-        container = try? ModelContainer(for: SavedRecipe.self)
-        container?.mainContext.undoManager = UndoManager()
+        do {
+            container = try ModelContainer(for: SavedRecipe.self)
+            container.mainContext.undoManager = UndoManager()
+        } catch {
+            fatalError("SwiftData-Container konnte nicht erstellt werden: \(error)")
+        }
     }
 
     /// Alle gespeicherten Rezepte, neueste zuerst.
     func all() -> [SavedRecipe] {
-        guard let context else { return [] }
         let descriptor = FetchDescriptor<SavedRecipe>(
             sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
         )
@@ -40,7 +43,6 @@ final class SavedRecipeRepository {
 
     /// Ist ein Rezept (per Name) bereits gespeichert?
     func isSaved(_ name: String) -> Bool {
-        guard let context else { return false }
         let descriptor = FetchDescriptor<SavedRecipe>(
             predicate: #Predicate { $0.recipeName == name }
         )
@@ -49,7 +51,7 @@ final class SavedRecipeRepository {
 
     /// Rezept offline speichern — vorhandene Bild-URL wird einmal heruntergeladen und mitgespeichert.
     func save(_ recipe: Recipe) async {
-        guard let context, !isSaved(recipe.name) else { return }
+        guard !isSaved(recipe.name) else { return }
         var imageData: Data?
         if let urlString = recipe.imageURL, let url = URL(string: urlString) {
             imageData = try? await URLSession.shared.data(from: url).0
@@ -59,7 +61,6 @@ final class SavedRecipeRepository {
     }
 
     func delete(_ item: SavedRecipe) {
-        guard let context else { return }
         context.delete(item)
         try? context.save()
     }
