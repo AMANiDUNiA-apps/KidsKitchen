@@ -44,15 +44,30 @@ struct RGBAColor: Codable, Hashable {
         return RGBAColor(r: clamp(r), g: clamp(g), b: clamp(b), a: clamp(a))
     }
 
-    /// WCAG-Relativluminanz → kontrastsichere Text-/Symbolfarbe (Schwarz/Weiß),
-    /// automatisch abgeleitet statt vom Kind gewählt (Team-Runde v2 #5/#6).
-    var contrastingTextColor: Color {
+    /// Dunkle Farbe nach WCAG-Relativluminanz (Basis der Kontrast-Rollen).
+    var isDarkColor: Bool {
         func linear(_ c: Double) -> Double {
             c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
         }
         let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
-        return luminance > 0.5 ? .black : .white
+        return luminance <= 0.5
     }
+
+    /// Kontrastsichere Text-/Symbolfarbe (Schwarz/Weiß), automatisch abgeleitet
+    /// statt vom Kind gewählt (Team-Runde v2 #5/#6).
+    var contrastingTextColor: Color { isDarkColor ? .white : .black }
+}
+
+// MARK: - KKTheme Kontrast-Rollen
+/// Zentrale cardTextColor-Rolle (Terra-Review 18.7. #2, Team-Entscheid): aus der
+/// ECHTEN Kartenfarbe per Luminanz abgeleitet — nicht aus isDark. KKCard stellt
+/// darüber das colorScheme des Karteninhalts, damit .primary/.secondary auf
+/// Theme-Karten kontrastsicher auflösen; der Editor-Preview nutzt dieselbe Rolle.
+extension KKTheme {
+    /// Kartenfläche ist dunkel (Luminanz der cardSurface).
+    var hasDarkCard: Bool { RGBAColor(cardSurface).isDarkColor }
+    /// Sichere Textfarbe auf der Kartenfläche.
+    var cardTextColor: Color { hasDarkCard ? .white : .black }
 }
 
 // MARK: - CustomTheme
@@ -67,10 +82,22 @@ struct CustomTheme: Codable, Identifiable, Hashable {
     var accent: RGBAColor
 
     static let idPrefix = "custom-"
+    static let maxNameLength = 24
 
-    /// ID trägt das custom-Präfix UND kollidiert mit keinem eingebauten Theme.
+    /// Zentrale ID-Validierung (Terra-Review 18.7. #1): exakt `custom-<UUID>`.
+    /// Das schließt Built-in-Kollisionen strukturell aus (kein eingebautes Theme
+    /// trägt das Präfix) und verwirft freie Formen wie "custom-1".
     var hasValidID: Bool {
-        id.hasPrefix(Self.idPrefix) && !KKTheme.all.contains { $0.id == id }
+        id.hasPrefix(Self.idPrefix)
+            && UUID(uuidString: String(id.dropFirst(Self.idPrefix.count))) != nil
+    }
+
+    /// Bereinigter Name: getrimmt + längenbegrenzt; nil wenn danach leer
+    /// (Terra-Review 18.7. #4 — manipuliertes JSON darf keinen Leer-/Riesen-
+    /// Namen ins UI bringen).
+    static func sanitizedName(_ raw: String) -> String? {
+        let trimmed = String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxNameLength))
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Wandelt das eigene Theme in ein anzeigbares KKTheme um (secondary/cta
@@ -100,8 +127,9 @@ struct CustomThemesPayload: Codable {
 // MARK: - CustomThemesCodec
 /// Reine Kodier-/Dekodier-Logik, ohne UserDefaults-Zugriff (testbar ohne Store).
 /// Dekodieren bereinigt IMMER: falsche Version/kaputtes JSON → leer · über 3
-/// Einträge gekappt · ID-Kollision mit eingebautem Theme verworfen · nicht-
-/// endliche Farbwerte verworfen. Nie ein Crash, nie mehr als 3 Themes.
+/// Einträge gekappt · ungültige IDs (kein custom-<UUID>) und ID-Duplikate
+/// verworfen · nicht-endliche Farbwerte verworfen · Namen getrimmt/gekappt,
+/// leere verworfen. Nie ein Crash, nie mehr als 3 Themes.
 enum CustomThemesCodec {
     static let currentVersion = 1
 
@@ -111,10 +139,11 @@ enum CustomThemesCodec {
               payload.version == currentVersion
         else { return [] }
 
+        var seenIDs = Set<String>()
         return Array(
             payload.themes
                 .compactMap { sanitized($0) }
-                .filter { $0.hasValidID }
+                .filter { $0.hasValidID && seenIDs.insert($0.id).inserted }
                 .prefix(3)
         )
     }
@@ -124,11 +153,13 @@ enum CustomThemesCodec {
     }
 
     private static func sanitized(_ theme: CustomTheme) -> CustomTheme? {
-        guard let background = theme.background.clampedOrNil,
+        guard let name = CustomTheme.sanitizedName(theme.name),
+              let background = theme.background.clampedOrNil,
               let card = theme.card.clampedOrNil,
               let accent = theme.accent.clampedOrNil
         else { return nil }
         var cleaned = theme
+        cleaned.name = name
         cleaned.background = background
         cleaned.card = card
         cleaned.accent = accent

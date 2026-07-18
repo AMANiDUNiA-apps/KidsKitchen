@@ -140,6 +140,14 @@ struct KKCard<Content: View>: View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
+            // Zentrale cardTextColor-Rolle (Terra 18.7. #2, Team-Entscheid):
+            // Karteninhalt rendert im colorScheme der ECHTEN Kartenfarbe
+            // (Luminanz), damit .primary/.secondary immer kontrastsicher sind —
+            // unabhängig von der App-Erscheinung außen.
+            // ponytail: bei cardOpacity ≈ 0 (transparente Karte) sitzt der Text
+            // auf dem App-Hintergrund; die Rolle folgt trotzdem der Kartenfarbe —
+            // Hintergrund/Karte sind bei allen Themes gleich hell/dunkel.
+            .environment(\.colorScheme, theme.hasDarkCard ? .dark : .light)
             .background {
                 RoundedRectangle(cornerRadius: r)
                     .fill(theme.cardSurface.opacity(opacity))

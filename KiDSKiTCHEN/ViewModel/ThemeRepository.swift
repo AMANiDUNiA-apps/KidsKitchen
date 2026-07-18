@@ -89,4 +89,12 @@ final class ThemeRepository {
         get { defaults.string(forKey: Keys.appearanceMode) ?? "system" }
         set { defaults.set(newValue, forKey: Keys.appearanceMode) }
     }
+
+    /// Löschen eines eigenen Themes als EINE Operation mit definierter
+    /// Reihenfolge (Terra-Review 18.7. #3): erst der themeID-Fallback auf
+    /// storybook (falls das aktive Theme betroffen war), dann die neue Payload.
+    func deleteCustomTheme(fallbackToStorybook: Bool, payload: Data?) {
+        if fallbackToStorybook { themeID = "storybook" }
+        customThemesData = payload
+    }
 }

@@ -78,15 +78,25 @@ final class ThemeSettings {
 
     private let repo: ThemeRepository
 
-    var themeID: String { didSet { repo.themeID = themeID } }
+    /// Backing für `themeID` — beim Lösch-Fallback direkt gesetzt, damit die
+    /// Persistenz dort als EINE Repository-Operation läuft (Terra #3) statt
+    /// über einen zweiten didSet-Schreiber.
+    private var _themeID: String
+
+    var themeID: String {
+        get { _themeID }
+        set { _themeID = newValue; repo.themeID = newValue }
+    }
 
     /// App-Erscheinung außen. Unbekannter/kaputter Rohwert → .system (Default).
     var appearanceMode: AppearanceMode { didSet { repo.appearanceMode = appearanceMode.rawValue } }
 
     /// Bis zu 3 eigene Theme-Vorlagen. Mutation NUR über die CRUD-Methoden unten
-    /// (setzt das fachliche 3er-Limit durch, nicht nur das UI).
-    private(set) var customThemes: [CustomTheme] {
-        didSet { repo.customThemesData = CustomThemesCodec.encode(customThemes) }
+    /// (setzt 3er-Limit + ID-Validierung fachlich durch, nicht nur im UI).
+    private(set) var customThemes: [CustomTheme]
+
+    private func persistCustomThemes() {
+        repo.customThemesData = CustomThemesCodec.encode(customThemes)
     }
 
     /// 0.0 = Klar (transparent, Hintergrund sichtbar) · 1.0 = Aus (solide Karte).
@@ -114,12 +124,17 @@ final class ThemeSettings {
         return .storybook
     }
 
-    /// Legt ein eigenes Theme an. `false`, wenn das 3er-Limit bereits erreicht ist
-    /// (fachlich durchgesetzt, nicht nur im UI-Knopf).
+    /// Legt ein eigenes Theme an. `false` bei erreichtem 3er-Limit, ungültiger
+    /// ID (kein custom-<UUID>, Terra #1) oder ID-Duplikat — fachlich
+    /// durchgesetzt, nicht nur im UI-Knopf.
     @discardableResult
     func addCustomTheme(_ theme: CustomTheme) -> Bool {
-        guard customThemes.count < 3 else { return false }
+        guard customThemes.count < 3,
+              theme.hasValidID,
+              !customThemes.contains(where: { $0.id == theme.id })
+        else { return false }
         customThemes.append(theme)
+        persistCustomThemes()
         return true
     }
 
@@ -127,16 +142,22 @@ final class ThemeSettings {
     func updateCustomTheme(_ theme: CustomTheme) {
         guard let index = customThemes.firstIndex(where: { $0.id == theme.id }) else { return }
         customThemes[index] = theme
+        persistCustomThemes()
     }
 
-    /// Löscht ein eigenes Theme. War es aktiv: themeID zuerst auf storybook SETZEN
-    /// UND SPEICHERN, danach erst das Theme entfernen (Team-Runde v2 #3 — definierte
-    /// Reihenfolge, kein Zwischenzustand mit einer auf nichts mehr zeigenden ID).
+    /// Löscht ein eigenes Theme. War es aktiv: Fallback auf storybook + Entfernen
+    /// als EINE Repository-Operation mit definierter Reihenfolge (erst themeID
+    /// persistieren, dann Payload — Team-Runde v2 #3 / Terra #3).
     func deleteCustomTheme(id: String) {
-        if themeID == id {
-            themeID = "storybook"
-        }
-        customThemes.removeAll { $0.id == id }
+        var remaining = customThemes
+        remaining.removeAll { $0.id == id }
+        let fallsBack = _themeID == id
+        repo.deleteCustomTheme(
+            fallbackToStorybook: fallsBack,
+            payload: CustomThemesCodec.encode(remaining)
+        )
+        if fallsBack { _themeID = "storybook" }
+        customThemes = remaining
     }
 
     /// Innen-Radius (Icon-Badges u. ä.) — proportional zum äußeren Radius.
@@ -153,7 +174,7 @@ final class ThemeSettings {
     /// echten `.shared`-Store (Terra-Lehre 18.7.).
     init(repo: ThemeRepository = .shared) {
         self.repo              = repo
-        self.themeID           = repo.themeID
+        self._themeID          = repo.themeID
         self.appearanceMode    = AppearanceMode(rawValue: repo.appearanceMode) ?? .system
         self.customThemes      = CustomThemesCodec.decode(repo.customThemesData)
         self.cardOpacity       = repo.cardOpacity

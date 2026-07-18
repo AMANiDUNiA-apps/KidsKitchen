@@ -58,8 +58,9 @@ struct CustomThemeEditorView: View {
 
     private var hasChanges: Bool { current != original }
 
+    /// Gleiche Bereinigung wie beim Laden (CustomTheme.sanitizedName): trimmen + kappen.
     private var trimmedName: String {
-        String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(24))
+        CustomTheme.sanitizedName(name) ?? ""
     }
 
     var body: some View {
@@ -145,8 +146,11 @@ struct CustomThemeEditorView: View {
     }
 
     // MARK: Live-Vorschau (echte App-Elemente: Karte, Knopf, Text)
+    // Nutzt exakt dieselben Kontrast-Rollen wie die App: Kartentext aus der
+    // ECHTEN Kartenfarbe (cardTextColor-Rolle), Knopftext aus der Akzentfarbe.
     private var previewSection: some View {
-        let textColor = RGBAColor(accent).contrastingTextColor
+        let buttonTextColor = RGBAColor(accent).contrastingTextColor
+        let cardTextColor = RGBAColor(card).contrastingTextColor
 
         return VStack(alignment: .leading, spacing: 8) {
             KKSectionHeader(title: "So sieht's aus", systemImage: "eye", tint: accent)
@@ -161,7 +165,7 @@ struct CustomThemeEditorView: View {
                         .overlay(
                             Text("Apfel-Zimt-Porridge")
                                 .font(.system(.subheadline, design: .serif))
-                                .foregroundStyle(isDark ? .white : .black)
+                                .foregroundStyle(cardTextColor)
                                 .padding(.horizontal, 12),
                             alignment: .leading
                         )
@@ -172,7 +176,7 @@ struct CustomThemeEditorView: View {
 
                     Text("Los geht's")
                         .font(.subheadline.bold())
-                        .foregroundStyle(textColor)
+                        .foregroundStyle(buttonTextColor)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(accent, in: Capsule())
