@@ -3,7 +3,8 @@
 //  KiDSKiTCHEN
 //
 //  Kurzer Splash beim Kaltstart (Jay-Wunsch: „coole Schrift" für „KiDS KiTCHEN"),
-//  cremiger Theme-Hintergrund + kräftiger rounded Display-Schnitt — reine
+//  cremiger Theme-Hintergrund + Logo-Kachel (SplashLogo = gewähltes App-Icon-Motiv,
+//  Kochmütze) + kräftiger rounded Display-Schnitt — reine
 //  System-Schrift, keine neue Font-Dependency. Keine Netz-Zugriffe: nur ein
 //  Timer, kein Warten auf Rezept-Ladevorgänge (Kinder-App-Datenschutz).
 //
@@ -21,13 +22,22 @@ struct SplashScreenView: View {
                             startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
 
-            VStack(spacing: 4) {
-                Text("KiDS")
-                    .font(.system(size: 46, weight: .black, design: .rounded))
-                Text("KiTCHEN")
-                    .font(.system(size: 54, weight: .black, design: .rounded))
+            VStack(spacing: 24) {
+                Image("SplashLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
+
+                VStack(spacing: 4) {
+                    Text("KiDS")
+                        .font(.system(size: 46, weight: .black, design: .rounded))
+                    Text("KiTCHEN")
+                        .font(.system(size: 54, weight: .black, design: .rounded))
+                }
+                .foregroundStyle(settings.theme.accent)
             }
-            .foregroundStyle(settings.theme.accent)
             .scaleEffect(scale)
             .opacity(opacity)
         }
