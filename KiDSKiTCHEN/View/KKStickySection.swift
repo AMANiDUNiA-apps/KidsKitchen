@@ -20,7 +20,16 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
     @ViewBuilder var header: Header
     @ViewBuilder var minimisedHeader: MinimisedHeader
     /// Für die Höhe des Voll-Headers, um Minimiert-Header und Maske korrekt zu platzieren.
-    @State private var headerSize: CGSize = .zero
+    /// Startwert NICHT .zero (Ruckler-Fix 18.7.): bis `onGeometryChange` unten die echte
+    /// Höhe misst, rechnen Maske/Hintergrund sonst kurz mit einer ~4pt-Kopfzeile statt der
+    /// echten ~44pt — auf der ersten Karte kollabiert dadurch für einen Frame der ganze
+    /// Wochenplan sichtbar nach oben (das vom Screenshot gemeldete „Tab-Bar schwebt mitten
+    /// über der Liste"), bis ein Scroll die Geometrie neu auflöst. Realistische Schätzung
+    /// der Voll-Header-Höhe (Serifen-Titel + Datumszeile) macht den ersten Frame fast
+    /// deckungsgleich mit dem gemessenen Wert.
+    /// ponytail: fixe Schätzung, kein Messen vor dem ersten Layout — bei sehr großer
+    /// Dynamic-Type-Einstellung bleibt ein kleinerer Rest-Sprung; Kern (das ~40pt-Delta) ist behoben.
+    @State private var headerSize: CGSize = CGSize(width: 0, height: 44)
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
