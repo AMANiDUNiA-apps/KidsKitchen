@@ -17,11 +17,28 @@ struct ThemeSettingsView: View {
     @State private var showParentGate = false
     @State private var parentChallenge: ParentalGateChallenge = .generate()
 
+    // Eigene Themes: Editor-Sheet + Lösch-Rückfrage + Limit-Hinweis.
+    @State private var editorTarget: EditorTarget?
+    @State private var deleteTarget: CustomTheme?
+    @State private var showLimitAlert = false
+
+    private enum EditorTarget: Identifiable {
+        case new
+        case edit(CustomTheme)
+        var id: String {
+            switch self {
+            case .new: "new"
+            case .edit(let theme): theme.id
+            }
+        }
+    }
+
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
     var body: some View {
         KKScroll {
             themeGrid
+            appearanceSection
             glassSection
             loopSection
             radiusSection
@@ -30,9 +47,37 @@ struct ThemeSettingsView: View {
         }
         .navigationTitle("Design")
         .navigationBarTitleDisplayMode(.large)
+        .sheet(item: $editorTarget) { target in
+            NavigationStack {
+                switch target {
+                case .new: CustomThemeEditorView()
+                case .edit(let theme): CustomThemeEditorView(editing: theme)
+                }
+            }
+        }
+        .alert("Schon 3 eigene Themes", isPresented: $showLimitAlert) {
+            Button("Verstanden", role: .cancel) {}
+        } message: {
+            Text("Du hast schon 3 eigene Themes angelegt. Lösche eines, um Platz für ein neues zu machen.")
+        }
+        .alert(
+            "Theme löschen?",
+            isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }),
+            presenting: deleteTarget
+        ) { target in
+            Button("Löschen", role: .destructive) {
+                settings.deleteCustomTheme(id: target.id)
+                deleteTarget = nil
+            }
+            Button("Abbrechen", role: .cancel) { deleteTarget = nil }
+        } message: { target in
+            Text(settings.themeID == target.id
+                 ? "„\(target.name)\" löschen? Danach verwenden wir wieder Bücherei als Farbstyle."
+                 : "„\(target.name)\" löschen? Das kannst du nicht rückgängig machen.")
+        }
     }
 
-    // MARK: Theme-Grid (8 Karten)
+    // MARK: Theme-Grid (8 eingebaute + bis zu 3 eigene, gleichberechtigt wählbar)
     private var themeGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             KKSectionHeader(title: "Farbstyle", systemImage: "paintpalette")
@@ -40,16 +85,63 @@ struct ThemeSettingsView: View {
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(KKTheme.all) { theme in
+                    ThemeCard(theme: theme, isSelected: settings.themeID == theme.id) {
+                        select(theme.id)
+                    }
+                }
+                ForEach(settings.customThemes) { custom in
                     ThemeCard(
-                        theme: theme,
-                        isSelected: settings.themeID == theme.id
+                        theme: custom.asKKTheme(),
+                        isSelected: settings.themeID == custom.id,
+                        isCustom: true,
+                        onEdit: { editorTarget = .edit(custom) },
+                        onDelete: { deleteTarget = custom }
                     ) {
-                        withAnimation(.spring(response: 0.3)) {
-                            settings.themeID = theme.id
-                        }
+                        select(custom.id)
                     }
                 }
             }
+
+            if settings.customThemes.isEmpty {
+                Text("Erstelle dein erstes eigenes Küchenthema — wähle Farben, gib ihm einen Namen. Bis zu 3 eigene Themes sind möglich.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+            }
+
+            Button {
+                if settings.customThemes.count >= 3 {
+                    showLimitAlert = true
+                } else {
+                    editorTarget = .new
+                }
+            } label: {
+                Label("Eigenes Theme erstellen", systemImage: "plus.circle.fill")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(settings.theme.accent)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private func select(_ id: String) {
+        withAnimation(.spring(response: 0.3)) {
+            settings.themeID = id
+        }
+    }
+
+    // MARK: App-Erscheinung (System/Hell/Dunkel, getrennt von den Kartenfarben)
+    private var appearanceSection: some View {
+        KKSection(title: "App-Erscheinung", systemImage: "circle.lefthalf.filled") {
+            Picker("App außen", selection: $settings.appearanceMode) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text("Regelt Hell/Dunkel rundherum. Dein Farbstyle behält seine eigenen Kartenfarben.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -168,6 +260,11 @@ struct ThemeSettingsView: View {
 private struct ThemeCard: View {
     let theme: KKTheme
     let isSelected: Bool
+    /// Eigenes Theme statt eingebautem — zeigt Kennzeichnung + Bearbeiten/Löschen
+    /// (Team-Runde v2 #8: nur DORT anbieten, nicht bei den eingebauten Themes).
+    var isCustom: Bool = false
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
     let action: () -> Void
 
     @State private var settings: ThemeSettings = .shared
@@ -175,6 +272,7 @@ private struct ThemeCard: View {
     var body: some View {
         let r = settings.cardCornerRadius
 
+        VStack(spacing: 4) {
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 LinearGradient(
@@ -219,15 +317,40 @@ private struct ThemeCard: View {
             }
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
 
-            Text(theme.name)
-                .font(.caption.bold())
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 4)
+            VStack(spacing: 1) {
+                Text(theme.name)
+                    .font(.caption.bold())
+                    .foregroundStyle(.primary)
+                if isCustom {
+                    Text("Eigenes Theme")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 4)
         }
         .buttonStyle(.plain)
         .scaleEffect(isSelected ? 1.04 : 1)
         .animation(.spring(response: 0.28), value: isSelected)
+
+        if isCustom {
+            HStack(spacing: 20) {
+                Spacer()
+                Button { onEdit?() } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(theme.name) bearbeiten")
+
+                KKDeleteButton(accessibilityLabel: "\(theme.name) löschen") { onDelete?() }
+                Spacer()
+            }
+            .padding(.top, 2)
+        }
+        }
     }
 }
 
