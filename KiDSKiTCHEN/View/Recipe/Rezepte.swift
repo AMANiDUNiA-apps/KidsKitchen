@@ -31,6 +31,7 @@ struct Rezepte: View {
     // Zutatenliste gestaffelt einblenden (nur ohne Reduce-Motion).
     @State private var ingredientsVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismiss) private var dismiss
 
     init(recipe: Recipe) {
         self.recipe = recipe
@@ -122,8 +123,16 @@ struct Rezepte: View {
             // Kurzinfo
             KKSection(title: "Info", systemImage: "info.circle", tint: tint) {
                 if let category = recipe.category {
-                    Label(category.rawValue, systemImage: category.symbolName)
-                        .foregroundStyle(category.color)
+                    // Antippbar (Jay-Entscheid, ChipSelection-Badge): setzt den Home-
+                    // Kategorie-Filter und springt zur gefilterten Liste zurück.
+                    Button {
+                        RecipeCategoryFilter.shared.selected = category
+                        dismiss()
+                    } label: {
+                        CategoryChip(category: category, isSelected: false)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Nach \(category.rawValue) filtern")
                 }
                 if recipe.totalTime > 0 {
                     Label("^[\(recipe.totalTime) Minute](inflect: true)",
@@ -212,6 +221,18 @@ struct Rezepte: View {
 
             // Zubereitung — Schritt für Schritt, mit kindersicherer Slide-Bestätigung
             if !recipe.instructions.isEmpty {
+                // Einstieg in den Kochmodus (Vollansicht, Mini-Leiste über der Tabbar).
+                Button {
+                    KKCookingSession.shared.start(recipe)
+                } label: {
+                    Label("Kochen starten", systemImage: "flame.fill")
+                        .font(.system(.headline, design: .serif))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(tint)
+                .controlSize(.large)
+
                 CookingSteps(instructions: recipe.instructions,
                              tint: recipe.category?.color ?? .orange)
             }

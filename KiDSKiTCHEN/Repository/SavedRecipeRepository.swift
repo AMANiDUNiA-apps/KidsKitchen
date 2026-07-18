@@ -6,6 +6,10 @@
 //  mit dem ModelContext, sondern nur mit diesem Repository. Erfüllt die Abschluss-Anforderung
 //  „Datenpersistenz (SwiftData)".
 //
+//  UndoManager-Verdrahtung (Jay 17.7., Vorlage Kavsoft „UndoHelper"): dem
+//  ModelContext wird ein eigener UndoManager gesetzt — SwiftData registriert
+//  Änderungen (insert/delete) damit automatisch rückgängig-fähig.
+//
 
 import Foundation
 import SwiftData
@@ -17,8 +21,12 @@ final class SavedRecipeRepository {
     private let container: ModelContainer?
     private var context: ModelContext? { container?.mainContext }
 
+    /// Für Rückgängig/Wiederholen-Buttons in der Ansicht (SavedRecipesView).
+    var undoManager: UndoManager? { context?.undoManager }
+
     private init() {
         container = try? ModelContainer(for: SavedRecipe.self)
+        container?.mainContext.undoManager = UndoManager()
     }
 
     /// Alle gespeicherten Rezepte, neueste zuerst.

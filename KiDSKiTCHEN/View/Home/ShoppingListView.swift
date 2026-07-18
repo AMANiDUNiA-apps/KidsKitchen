@@ -21,6 +21,8 @@ struct ShoppingListView: View {
     @State private var settings: ThemeSettings = .shared
     @State private var selectedCategories: [IngredientCategory] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Rückgängig/Wiederholen fürs Löschen einzelner Posten (Jay 17.7.).
+    @Environment(\.undoManager) private var undoManager
 
     private var presentCategories: [IngredientCategory] {
         let present = Set(prefs.shopping.map(\.resolvedCategory))
@@ -77,6 +79,9 @@ struct ShoppingListView: View {
         .navigationTitle("Einkaufsliste")
         .kkTransparentNavBar()
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                KKUndoRedoButton(undoManager: undoManager)
+            }
             if prefs.shopping.contains(where: \.done) {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Erledigte löschen") { prefs.clearDoneShopping() }
@@ -84,6 +89,30 @@ struct ShoppingListView: View {
             }
         }
         .kkSettingsGear()
+    }
+
+    // MARK: Löschen mit Rückgängig/Wiederholen
+    // Symmetrisch registriert: jede Rückgängig-Aktion registriert beim Ausführen
+    // gleich wieder ihr Gegenstück, sonst würde Wiederholen (Redo) nach einem
+    // Undo nicht mehr funktionieren (Kavsoft „UndoHelper"-Prinzip).
+    private func deleteShoppingItem(_ item: ShoppingItem) {
+        prefs.shopping.removeAll { $0.id == item.id }
+        registerRestoreUndo(item)
+        undoManager?.setActionName("Eintrag löschen")
+    }
+
+    private func registerRestoreUndo(_ item: ShoppingItem) {
+        undoManager?.registerUndo(withTarget: prefs) { target in
+            target.shopping.append(item)
+            registerDeleteUndo(item)
+        }
+    }
+
+    private func registerDeleteUndo(_ item: ShoppingItem) {
+        undoManager?.registerUndo(withTarget: prefs) { target in
+            target.shopping.removeAll { $0.id == item.id }
+            registerRestoreUndo(item)
+        }
     }
 
     // MARK: Bedarf-Knopf — A2: cornerRadius → settings.cardCornerRadius
@@ -170,7 +199,7 @@ struct ShoppingListView: View {
 
             KKDeleteButton(accessibilityLabel: "\(value.text) löschen") {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    prefs.shopping.removeAll { $0.id == value.id }
+                    deleteShoppingItem(value)
                 }
             }
         }

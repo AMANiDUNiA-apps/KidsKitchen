@@ -27,7 +27,7 @@ struct Home: View {
     @State private var search = ""
     @State private var favoritesOnly = false
     @State private var pantryOnly = false
-    @State private var kidsCat: RecipeCategory? = nil
+    @State private var catFilter: RecipeCategoryFilter = .shared
     @State private var weekCarouselIndex = 0
     @State private var settings: ThemeSettings = .shared
 
@@ -42,7 +42,7 @@ struct Home: View {
     /// True im normalen Stöber-Zustand (keine Suche/Filter aktiv) — nur dann zeigt
     /// Home das Wochen-Karussell, damit es das gefilterte Blättern nicht überlagert.
     private var isBrowsingDefault: Bool {
-        search.isEmpty && kidsCat == nil && !favoritesOnly && !pantryOnly
+        search.isEmpty && catFilter.selected == nil && !favoritesOnly && !pantryOnly
     }
 
     /// Ehrliche Wochen-Rotation: deterministisch aus der Kalenderwoche über den
@@ -68,7 +68,7 @@ struct Home: View {
             && !recipe.containsExcluded(prefs.excluded)
             && (!favoritesOnly || prefs.isFavorite(recipe.name))
             && (!pantryOnly || prefs.pantryCoverage(recipe) >= 1.0)
-            && (kidsCat == nil || recipe.category == kidsCat)
+            && (catFilter.selected == nil || recipe.category == catFilter.selected)
         }
     }
 
@@ -138,6 +138,23 @@ struct Home: View {
                                         }
                                     )
                                     .padding(.trailing, 22)
+                                }
+                                // Kategorie-Badge, gleiches Muster wie der Herz-Knopf:
+                                // eigener Tap-Bereich neben dem Link, sonst schluckt der
+                                // NavigationLink den Tipp. Antippen = Filter setzen.
+                                .overlay(alignment: .bottomTrailing) {
+                                    if let cat = recipe.category {
+                                        Button {
+                                            withAnimation(.spring(response: 0.3)) {
+                                                catFilter.selected = cat
+                                            }
+                                        } label: {
+                                            CategoryChip(category: cat, isSelected: false)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(8)
+                                        .accessibilityLabel("Nach \(cat.rawValue) filtern")
+                                    }
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 5)
@@ -269,6 +286,7 @@ struct Home: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(.background, in: RoundedRectangle(cornerRadius: 14))
+                .kkFocusBeam(isActive: searchExpanded)
 
                 Button("Fertig") { collapseSearch() }
                     .fontWeight(.semibold)
@@ -309,21 +327,11 @@ struct Home: View {
         }
     }
 
-    // MARK: Kategorie-Chips
+    // MARK: Kategorie-Leiste
     private var categoryChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(RecipeCategory.allCases) { cat in
-                    KidsCatButton(cat: cat, selected: kidsCat == cat) {
-                        withAnimation(.spring(response: 0.3)) {
-                            kidsCat = kidsCat == cat ? nil : cat
-                        }
-                    }
-                }
-            }
+        KKCategoryBar(selection: $catFilter.selected)
             .padding(.horizontal, 16)
             .padding(.vertical, 4)
-        }
     }
 
     // MARK: Toolbar
@@ -410,39 +418,6 @@ private struct CategoryHeader: View {
 
 // MARK: - Kids sub-views
 
-private struct KidsCatButton: View {
-    let cat: RecipeCategory
-    let selected: Bool
-    let action: () -> Void
-    @State private var settings: ThemeSettings = .shared
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(selected ? settings.theme.accent : settings.theme.cardSurface)
-                        .frame(width: 62, height: 62)
-                    Image(systemName: cat.symbolName)
-                        .font(.title2)
-                        .foregroundStyle(selected ? .white : cat.color)
-                }
-                Text(cat.rawValue)
-                    .font(.caption.bold())
-                    .foregroundStyle(selected ? cat.color : .primary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .frame(width: 78)
-            }
-            .frame(width: 78)
-        }
-        .buttonStyle(.plain)
-        .scaleEffect(selected ? 1.08 : 1)
-        .animation(.spring(response: 0.28), value: selected)
-    }
-}
-
 private struct KidsRecipeRow: View {
     let recipe: Recipe
     @State private var settings: ThemeSettings = .shared
@@ -461,13 +436,10 @@ private struct KidsRecipeRow: View {
                 Text(recipe.name)
                     .font(.system(.body, design: .serif).bold())
                     .foregroundStyle(.primary)
-                HStack(spacing: 8) {
-                    if recipe.totalTime > 0 {
-                        Label("\(recipe.totalTime) min", systemImage: "clock")
-                    }
-                    if let cat = recipe.category { Text(cat.rawValue) }
+                if recipe.totalTime > 0 {
+                    Label("\(recipe.totalTime) min", systemImage: "clock")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             // Platz für den Herz-Knopf, den die Home-Ebene als Overlay einblendet.
