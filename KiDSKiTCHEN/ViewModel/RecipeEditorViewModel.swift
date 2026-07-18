@@ -132,6 +132,18 @@ class RecipeEditorViewModel {
         for ingredient in ingredients { ingredient.isSelected = false }
     }
 
+    func resetEditorSession() {
+        recipeIngredients = []
+        recipeInstructions = []
+        recipeIngredient = nil
+        recipeInstruction = nil
+        ingredientSearchText = ""
+        instructionsTextField = ""
+        isEditingInstruction = false
+        isShowingIngredients = false
+        resetAllSelected()
+    }
+
     // MARK: - removeAllRecipeIngredients
     func removeAllRecipeIngredients() {
         recipeIngredients.removeAll()

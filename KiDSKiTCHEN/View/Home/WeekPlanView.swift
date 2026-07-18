@@ -139,6 +139,8 @@ struct WeekPlanView: View {
         .kkSettingsGear()
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy(duration: 0.25), value: selectedDay)
+        .onChange(of: weekOffset) { _, _ in pruneSelectedCategories() }
+        .onChange(of: presentCategories) { _, _ in pruneSelectedCategories() }
         .sheet(item: $addTarget) { day in
             KKDynamicSheet(animation: .snappy(duration: 0.3, extraBounce: 0)) {
                 AddRecipeToDaySheet(day: day, week: weekStart)
@@ -431,6 +433,11 @@ struct WeekPlanView: View {
             guard let category = recipe(named: name)?.category else { return false }
             return selectedCategories.contains(category)
         }
+    }
+
+    private func pruneSelectedCategories() {
+        let available = Set(presentCategories)
+        selectedCategories.removeAll { !available.contains($0) }
     }
 }
 

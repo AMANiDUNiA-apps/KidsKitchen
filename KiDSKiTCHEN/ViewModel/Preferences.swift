@@ -151,9 +151,16 @@ final class Preferences {
         // Wochen-Präfix werden der AKTUELLEN Woche zugeordnet — kein Datenverlust.
         let wk = Preferences.weekKey(.kkWeekStart())
         if plan.keys.contains(where: { !$0.contains("|") }) {
-            plan = Dictionary(uniqueKeysWithValues: plan.map { key, value in
-                (key.contains("|") ? key : "\(wk)|\(key)", value)
-            })
+            var migratedPlan: [String: [String]] = [:]
+            for (key, value) in plan {
+                let migratedKey = key.contains("|") ? key : "\(wk)|\(key)"
+                var merged = migratedPlan[migratedKey] ?? []
+                for recipeName in value where !merged.contains(recipeName) {
+                    merged.append(recipeName)
+                }
+                migratedPlan[migratedKey] = merged
+            }
+            plan = migratedPlan
             savePlan()
         }
         let sep = "\u{1F}"
@@ -164,9 +171,14 @@ final class Preferences {
             defaults.set(Array(cooked), forKey: Keys.cooked)   // didSet feuert im init nicht
         }
         if cookedDeductions.keys.contains(where: { $0.components(separatedBy: sep).count == 2 }) {
-            cookedDeductions = Dictionary(uniqueKeysWithValues: cookedDeductions.map { key, value in
-                (key.components(separatedBy: sep).count == 2 ? "\(wk)\(sep)\(key)" : key, value)
-            })
+            var migratedDeductions: [String: [String: Int]] = [:]
+            for (key, value) in cookedDeductions {
+                let migratedKey = key.components(separatedBy: sep).count == 2 ? "\(wk)\(sep)\(key)" : key
+                migratedDeductions[migratedKey, default: [:]].merge(value) { current, incoming in
+                    max(current, incoming)
+                }
+            }
+            cookedDeductions = migratedDeductions
             saveCookedDeductions()
         }
     }

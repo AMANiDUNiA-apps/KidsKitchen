@@ -66,6 +66,8 @@ final class RecipeImportViewModel {
 
     var modelUnavailable: Bool { model.availability != .available }
 
+    private let maxImportBytes = 1_000_000
+
     private var validImportURL: URL? {
         let trimmed = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed),
@@ -81,7 +83,18 @@ final class RecipeImportViewModel {
         guard let url = validImportURL else { return }
         state = .fetching
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 20
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else {
+                state = .error("Die Seite konnte nicht geladen werden. Bitte pruefe die URL.")
+                return
+            }
+            if http.expectedContentLength > Int64(maxImportBytes) || data.count > maxImportBytes {
+                state = .error("Die Seite ist zu gross fuer den Import. Bitte nutze eine kompaktere Rezeptseite.")
+                return
+            }
             let raw = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
             guard isRecipePage(raw) else {
                 state = .error("Diese Seite scheint kein Rezept zu enthalten. Bitte eine Rezept-URL einfügen.")

@@ -34,28 +34,47 @@ struct RemoteRecipe: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeIfPresent(String.self, forKey: .id)
-        title = try container.decodeIfPresent(String.self, forKey: .title)
-        description = try container.decodeIfPresent(String.self, forKey: .description)
-        category = try container.decodeIfPresent(String.self, forKey: .category)
-        image = try container.decodeIfPresent(String.self, forKey: .image)
+        id = Self.string(from: container, forKey: .id)
+        title = Self.string(from: container, forKey: .title)
+        description = Self.string(from: container, forKey: .description)
+        category = Self.string(from: container, forKey: .category)
+        image = Self.string(from: container, forKey: .image)
         servings = Self.int(from: container, forKey: .servings)
-        prep_time = try container.decodeIfPresent(String.self, forKey: .prep_time)
-        cook_time = try container.decodeIfPresent(String.self, forKey: .cook_time)
-        directions = try container.decodeIfPresent(String.self, forKey: .directions)
-        instructions_list = try container.decodeIfPresent(String.self, forKey: .instructions_list)
-        calories = try container.decodeIfPresent(String.self, forKey: .calories)
-        protein_g = try container.decodeIfPresent(String.self, forKey: .protein_g)
-        carbohydrates_g = try container.decodeIfPresent(String.self, forKey: .carbohydrates_g)
-        fat_g = try container.decodeIfPresent(String.self, forKey: .fat_g)
-        dietary_fiber_g = try container.decodeIfPresent(String.self, forKey: .dietary_fiber_g)
+        prep_time = Self.string(from: container, forKey: .prep_time)
+        cook_time = Self.string(from: container, forKey: .cook_time)
+        directions = Self.string(from: container, forKey: .directions)
+        instructions_list = Self.string(from: container, forKey: .instructions_list)
+        calories = Self.string(from: container, forKey: .calories)
+        protein_g = Self.string(from: container, forKey: .protein_g)
+        carbohydrates_g = Self.string(from: container, forKey: .carbohydrates_g)
+        fat_g = Self.string(from: container, forKey: .fat_g)
+        dietary_fiber_g = Self.string(from: container, forKey: .dietary_fiber_g)
+    }
+
+    private static func string(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> String? {
+        if let value = try? container.decodeIfPresent(String.self, forKey: key) {
+            return value
+        }
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return String(value)
+        }
+        if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return String(value)
+        }
+        if let value = try? container.decodeIfPresent(Bool.self, forKey: key) {
+            return String(value)
+        }
+        return nil
     }
 
     private static func int(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Int? {
         if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
             return value
         }
-        if let raw = try? container.decodeIfPresent(String.self, forKey: key) {
+        if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return Int(value.rounded())
+        }
+        if let raw = Self.string(from: container, forKey: key) {
             return minutes(raw)
         }
         return nil

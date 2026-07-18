@@ -26,12 +26,12 @@ struct NewRecipe: View {
     private func prepareIfNeeded() {
         guard !didPrepare else { return }
         didPrepare = true
-        if newRecipe.name.isEmpty {
-            viewModel.recipeIngredients = []
-            viewModel.recipeInstructions = []
-        } else if !newRecipe.ingredients.isEmpty || !newRecipe.instructions.isEmpty {
+        viewModel.resetEditorSession()
+        if !newRecipe.name.isEmpty,
+           !newRecipe.ingredients.isEmpty || !newRecipe.instructions.isEmpty {
             viewModel.recipeIngredients = newRecipe.ingredients
             viewModel.recipeInstructions = newRecipe.instructions
+            viewModel.checkStatus()
         }
     }
 
@@ -41,10 +41,7 @@ struct NewRecipe: View {
         recipe.instructions = viewModel.recipeInstructions
         recipe.nutrition = recipe.computedNutrition   // Nährwerte aus den Zutaten
         listViewModel.add(recipe)
-        // Editor für das nächste Rezept leeren + isSelected-Flags zurücksetzen
-        viewModel.recipeIngredients = []
-        viewModel.recipeInstructions = []
-        viewModel.resetAllSelected()
+        viewModel.resetEditorSession()
         dismiss()
     }
 
@@ -156,6 +153,10 @@ struct NewRecipe: View {
         }
         .navigationTitle(newRecipe.name.isEmpty ? "Neues Rezept" : newRecipe.name)
         .onAppear(perform: prepareIfNeeded)
+        .onDisappear {
+            guard didPrepare else { return }
+            viewModel.resetEditorSession()
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Speichern", action: save)
