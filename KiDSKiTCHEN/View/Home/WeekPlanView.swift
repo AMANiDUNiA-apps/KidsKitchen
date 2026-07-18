@@ -112,6 +112,7 @@ struct WeekPlanView: View {
                             dayMinimisedHeader(day)
                         }
                     }
+                    nextWeekAnchor
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal, 16)
@@ -239,6 +240,34 @@ struct WeekPlanView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(settings.theme.headerBackground)
+    }
+
+    // MARK: „Nächste Woche"-Anschluss (Listenende, Aufgabe 3 BRIEF-kk-endstrecke)
+    /// Ans Wochenende (So) gescrollt → statt Sackgasse ein klarer, antippbarer
+    /// Anschluss in die nächste Woche zum Vorausplanen. Nutzt dieselbe
+    /// `weekOffset`-Navigation wie die Pfeile oben — die Persistenz landet damit
+    /// garantiert unter dem Key der NÄCHSTEN Woche (`weekStart` folgt `weekOffset`).
+    private var nextWeekAnchor: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.25)) {
+                weekOffset += 1
+                selectedDay = Weekday.allCases.first
+            }
+        } label: {
+            HStack {
+                Text("Nächste Woche planen")
+                    .font(.system(.subheadline, design: .serif).weight(.medium))
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.bold())
+            }
+            .foregroundStyle(settings.theme.accent)
+            .padding(14)
+            .background(settings.theme.cardSurface.opacity(settings.cardOpacity),
+                        in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Springt zur nächsten Woche zum Vorausplanen")
     }
 
     // MARK: Voll-Header (Tagesname, „heute", Anzahl, „+")
