@@ -190,19 +190,19 @@ struct RecipeImportView: View {
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-
-                    Button {
-                        Task { await vm.startImport() }
-                    } label: {
-                        Label("Rezept importieren", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.theme.accent)
-                    .disabled(!vm.canImport)
                 }
 
                 statusSection
+            }
+        }
+        // Jay 18.7.: beide Aktions-Knöpfe FEST am unteren Rand, unabhängig von der
+        // Scroll-Position — vorher scrollten sie mit und landeten unter der
+        // Glas-Tab-Bar (nicht klickbar). safeAreaInset stapelt sich automatisch
+        // ÜBER die Tab-Bar-Zone (ContentView-Inset) und schiebt zugleich den
+        // Scroll-Inhalt frei, sodass der letzte Text nicht darunter verschwindet.
+        .safeAreaInset(edge: .bottom, spacing: 8) {
+            if !(prefs.kidsControlEnabled && !gateUnlocked) {
+                actionButtons
             }
         }
         .navigationTitle("Rezept importieren")
@@ -212,6 +212,35 @@ struct RecipeImportView: View {
                 NewRecipe(newRecipe: recipe.toRecipeDraft())
             }
         }
+    }
+
+    /// Beide Aktions-Knöpfe fest am unteren Rand (Jay 18.7.).
+    /// „Als Entwurf speichern" erscheint erst mit fertigem Extrakt darüber.
+    private var actionButtons: some View {
+        VStack(spacing: 10) {
+            Button {
+                Task { await vm.startImport() }
+            } label: {
+                Label("Rezept importieren", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(settings.theme.accent)
+            .disabled(!vm.canImport)
+
+            if case .done = vm.state {
+                Button {
+                    showSaveSheet = true
+                } label: {
+                    Label("Als Entwurf speichern", systemImage: "tray.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.theme.cta)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
     }
 
     @ViewBuilder
@@ -258,16 +287,6 @@ struct RecipeImportView: View {
                           systemImage: "clock").font(.caption).foregroundStyle(.secondary)
                 }
             }
-
-            Button {
-                showSaveSheet = true
-            } label: {
-                Label("Als Entwurf speichern", systemImage: "tray.and.arrow.down")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(settings.theme.cta)
-            .padding(.horizontal, 16)
 
         case .error(let message):
             KKCard {
