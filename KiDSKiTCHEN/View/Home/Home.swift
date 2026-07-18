@@ -139,23 +139,10 @@ struct Home: View {
                                     )
                                     .padding(.trailing, 22)
                                 }
-                                // Kategorie-Badge, gleiches Muster wie der Herz-Knopf:
-                                // eigener Tap-Bereich neben dem Link, sonst schluckt der
-                                // NavigationLink den Tipp. Antippen = Filter setzen.
-                                .overlay(alignment: .bottomTrailing) {
-                                    if let cat = recipe.category {
-                                        Button {
-                                            withAnimation(.spring(response: 0.3)) {
-                                                catFilter.selected = cat
-                                            }
-                                        } label: {
-                                            CategoryChip(category: cat, isSelected: false)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding(8)
-                                        .accessibilityLabel("Nach \(cat.rawValue) filtern")
-                                    }
-                                }
+                                // Kategorie-Badge entfernt (Jay 18.7.) — die Kategorie
+                                // zeigt in der Liste nur noch die farbige Karten-
+                                // Umrandung (KidsRecipeRow); der Chip lebt in der
+                                // Detail-Ansicht (Rezepte.swift).
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 5)
                             }
@@ -446,8 +433,12 @@ private struct KidsRecipeRow: View {
             Color.clear.frame(width: 34, height: 34)
         }
         .padding(14)
+        // cardTextColor-Rolle wie KKCard: Inhalt im colorScheme der echten Kartenfarbe.
+        .environment(\.colorScheme, settings.theme.hasDarkCard ? .dark : .light)
         .background(settings.theme.cardSurface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(settings.theme.cardStroke, lineWidth: 1.5))
+        // Kategorie-Farbe als 1-Punkt-Umrandung (Jay 18.7., ersetzt das Badge).
+        .overlay(RoundedRectangle(cornerRadius: 16)
+            .stroke(recipe.category?.color ?? settings.theme.cardStroke, lineWidth: 1))
     }
 }
 
