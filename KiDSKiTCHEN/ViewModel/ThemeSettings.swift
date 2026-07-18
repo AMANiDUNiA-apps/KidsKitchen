@@ -45,6 +45,32 @@ enum PantryTransitionStyle: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - AppearanceMode
+/// App-Erscheinung außen (Leiste/Systemfenster) — getrennt von `KKTheme.isDark`
+/// (bestimmt nur die Kartenfarben). Am ECHTEN App-Root gesetzt (KiDSKiTCHENApp),
+/// NICHT mehr in ContentView (Team-Runde v2 #7 — Zwei-Achsen-Klarheit).
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: "Automatisch"
+        case .light:  "Hell"
+        case .dark:   "Dunkel"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light:  .light
+        case .dark:   .dark
+        }
+    }
+}
+
 // MARK: - ThemeSettings
 @Observable
 final class ThemeSettings {
@@ -53,6 +79,15 @@ final class ThemeSettings {
     private let repo: ThemeRepository
 
     var themeID: String { didSet { repo.themeID = themeID } }
+
+    /// App-Erscheinung außen. Unbekannter/kaputter Rohwert → .system (Default).
+    var appearanceMode: AppearanceMode { didSet { repo.appearanceMode = appearanceMode.rawValue } }
+
+    /// Bis zu 3 eigene Theme-Vorlagen. Mutation NUR über die CRUD-Methoden unten
+    /// (setzt das fachliche 3er-Limit durch, nicht nur das UI).
+    private(set) var customThemes: [CustomTheme] {
+        didSet { repo.customThemesData = CustomThemesCodec.encode(customThemes) }
+    }
 
     /// 0.0 = Klar (transparent, Hintergrund sichtbar) · 1.0 = Aus (solide Karte).
     var cardOpacity: Double { didSet { repo.cardOpacity = cardOpacity } }
@@ -69,8 +104,40 @@ final class ThemeSettings {
     /// Übergangs-Animation für die Zutaten-Übersicht.
     var pantryTransition: PantryTransitionStyle { didSet { repo.pantryTransition = pantryTransition.rawValue } }
 
-    /// Aktuell gewähltes Theme-Objekt.
-    var theme: KKTheme { KKTheme.byID(themeID) }
+    /// Aktuell gewähltes Theme-Objekt — löst eingebaute UND eigene Themes auf.
+    /// Zentrale Auflösung (Team-Runde v2 #1, NICHT in KKTheme.byID — der kennt
+    /// den Store nicht). Invariante: liefert IMMER ein gültiges Theme; Decode-
+    /// Fehler, gelöschte ID oder ID-Kollision brechen das nie.
+    var theme: KKTheme {
+        if let builtIn = KKTheme.all.first(where: { $0.id == themeID }) { return builtIn }
+        if let custom = customThemes.first(where: { $0.id == themeID }) { return custom.asKKTheme() }
+        return .storybook
+    }
+
+    /// Legt ein eigenes Theme an. `false`, wenn das 3er-Limit bereits erreicht ist
+    /// (fachlich durchgesetzt, nicht nur im UI-Knopf).
+    @discardableResult
+    func addCustomTheme(_ theme: CustomTheme) -> Bool {
+        guard customThemes.count < 3 else { return false }
+        customThemes.append(theme)
+        return true
+    }
+
+    /// Ersetzt ein bestehendes eigenes Theme (Bearbeiten-Commit). ID muss passen.
+    func updateCustomTheme(_ theme: CustomTheme) {
+        guard let index = customThemes.firstIndex(where: { $0.id == theme.id }) else { return }
+        customThemes[index] = theme
+    }
+
+    /// Löscht ein eigenes Theme. War es aktiv: themeID zuerst auf storybook SETZEN
+    /// UND SPEICHERN, danach erst das Theme entfernen (Team-Runde v2 #3 — definierte
+    /// Reihenfolge, kein Zwischenzustand mit einer auf nichts mehr zeigenden ID).
+    func deleteCustomTheme(id: String) {
+        if themeID == id {
+            themeID = "storybook"
+        }
+        customThemes.removeAll { $0.id == id }
+    }
 
     /// Innen-Radius (Icon-Badges u. ä.) — proportional zum äußeren Radius.
     var cardInnerRadius: CGFloat { max(4, cardCornerRadius * 0.55) }
@@ -81,9 +148,14 @@ final class ThemeSettings {
     /// Hintergrund-Animation pausiert.
     var isLoopPaused: Bool { !animationEnabled }
 
-    private init(repo: ThemeRepository = .shared) {
+    /// Nicht `private` (mehr): DEBUG-Selbstchecks (KKThemeSettingsDebugCheck) erzeugen
+    /// eigene Instanzen gegen eine isolierte ThemeRepository-Suite — nie gegen den
+    /// echten `.shared`-Store (Terra-Lehre 18.7.).
+    init(repo: ThemeRepository = .shared) {
         self.repo              = repo
         self.themeID           = repo.themeID
+        self.appearanceMode    = AppearanceMode(rawValue: repo.appearanceMode) ?? .system
+        self.customThemes      = CustomThemesCodec.decode(repo.customThemesData)
         self.cardOpacity       = repo.cardOpacity
         self.cardCornerRadius  = repo.cardCornerRadius
         self.animationEnabled  = repo.animationEnabled
