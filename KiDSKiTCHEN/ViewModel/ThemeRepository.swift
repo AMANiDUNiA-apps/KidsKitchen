@@ -10,8 +10,14 @@ import Foundation
 
 final class ThemeRepository {
     static let shared = ThemeRepository()
-    private let defaults = UserDefaults.standard
-    private init() {}
+    private let defaults: UserDefaults
+
+    /// Injizierbar für DEBUG-Selbstchecks (isolierte UserDefaults-Suite statt
+    /// .standard — s. KKThemeSettingsDebugCheck). Default bleibt .standard für
+    /// den normalen App-Betrieb.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     private enum Keys {
         static let themeID            = "kk.theme.id"
@@ -20,6 +26,8 @@ final class ThemeRepository {
         static let animationEnabled   = "kk.theme.animationEnabled"
         static let animationSeconds   = "kk.theme.animationSeconds"
         static let pantryTransition   = "kk.theme.pantryTransition"
+        static let customThemes       = "kk.theme.customThemes"
+        static let appearanceMode     = "kk.theme.appearanceMode"
     }
 
     var themeID: String {
@@ -68,5 +76,17 @@ final class ThemeRepository {
     var pantryTransition: String {
         get { defaults.string(forKey: Keys.pantryTransition) ?? "gentle" }
         set { defaults.set(newValue, forKey: Keys.pantryTransition) }
+    }
+
+    /// Rohes JSON der eigenen Themes (Codec/Sanitizing lebt in CustomThemesCodec).
+    var customThemesData: Data? {
+        get { defaults.data(forKey: Keys.customThemes) }
+        set { defaults.set(newValue, forKey: Keys.customThemes) }
+    }
+
+    /// App-Erscheinung außen (rawValue ThemeSettings.AppearanceMode). Default "system".
+    var appearanceMode: String {
+        get { defaults.string(forKey: Keys.appearanceMode) ?? "system" }
+        set { defaults.set(newValue, forKey: Keys.appearanceMode) }
     }
 }
