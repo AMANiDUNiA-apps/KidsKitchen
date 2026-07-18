@@ -157,7 +157,8 @@ struct KKCard<Content: View>: View {
 struct KKSectionHeader: View {
     let title: String
     var systemImage: String? = nil
-    var tint: Color = .orange
+    /// Default = Theme-Accent (Terra 18.7.: hartes Orange brach Ernte/Nacht/Kakao).
+    var tint: Color = ThemeSettings.shared.theme.accent
 
     var body: some View {
         HStack(spacing: 8) {
@@ -181,7 +182,8 @@ struct KKSectionHeader: View {
 struct KKSection<Content: View>: View {
     var title: String? = nil
     var systemImage: String? = nil
-    var tint: Color = .orange
+    /// Default = Theme-Accent (Terra 18.7.: hartes Orange brach Ernte/Nacht/Kakao).
+    var tint: Color = ThemeSettings.shared.theme.accent
     var footer: String? = nil
     var cardPadding: CGFloat = 16
     var contentSpacing: CGFloat = 12

@@ -48,6 +48,7 @@ struct KKGlassTabBar: View {
     /// Badge-Zahl je Tab (0 = kein Badge) — Aufrufer liefert die echten Zählwerte.
     var badge: (KKTab) -> Int = { _ in 0 }
     @Namespace private var morphNamespace
+    @State private var settings: ThemeSettings = .shared
 
     var body: some View {
         HStack(spacing: 2) {
@@ -84,13 +85,13 @@ struct KKGlassTabBar: View {
                 Text(tab.title)
                     .font(.caption2.weight(.medium))
             }
-            .foregroundStyle(isActive ? Color.orange : Color.secondary)
+            .foregroundStyle(isActive ? settings.theme.accent : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background {
                 if isActive {
                     Capsule()
-                        .fill(Color.orange.opacity(0.15))
+                        .fill(settings.theme.accent.opacity(0.15))
                         .matchedGeometryEffect(id: "activeGlassTab", in: morphNamespace)
                 }
             }

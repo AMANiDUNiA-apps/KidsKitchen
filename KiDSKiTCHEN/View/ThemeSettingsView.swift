@@ -12,6 +12,10 @@ import SwiftUI
 struct ThemeSettingsView: View {
     @State private var settings: ThemeSettings = .shared
     @State private var prefs: Preferences = .shared
+    // Eltern-Freigabe fürs Umschalten der Sperre (gilt nur für diese Sheet-Sitzung).
+    @State private var parentGateUnlocked = false
+    @State private var showParentGate = false
+    @State private var parentChallenge: ParentalGateChallenge = .generate()
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
@@ -125,10 +129,35 @@ struct ThemeSettingsView: View {
     }
 
     // MARK: Eltern-Kontrolle
+    // Der Schalter selbst liegt hinter der Eltern-Freigabe (Rechenaufgabe) —
+    // sonst könnte das Kind die Sperre hier einfach abschalten (Terra 18.7.).
     private var parentalSection: some View {
         KKSection(title: "Eltern-Kontrolle", systemImage: "lock.shield") {
-            Toggle("Rezept-Import sperren", isOn: $prefs.kidsControlEnabled)
-                .tint(settings.theme.accent)
+            if parentGateUnlocked {
+                Toggle("Rezept-Import sperren", isOn: $prefs.kidsControlEnabled)
+                    .tint(settings.theme.accent)
+            } else {
+                HStack {
+                    Text("Rezept-Import sperren")
+                    Spacer(minLength: 8)
+                    Text(prefs.kidsControlEnabled ? "Aktiv" : "Aus")
+                        .foregroundStyle(.secondary)
+                }
+                if showParentGate {
+                    ParentalGateOverlay(challenge: parentChallenge, settings: settings) {
+                        parentGateUnlocked = true
+                    } onFailed: {
+                        parentChallenge = .generate()
+                    }
+                } else {
+                    Button("Zum Ändern Eltern-Freigabe lösen") {
+                        parentChallenge = .generate()
+                        showParentGate = true
+                    }
+                    .font(.subheadline)
+                    .tint(settings.theme.accent)
+                }
+            }
             Text("Wenn aktiv, erscheint vor dem Rezept-Import eine Rechenaufgabe als Freigabehürde (Apple Kids-Category-Anforderung für Webzugriff).")
                 .font(.caption).foregroundStyle(.secondary)
         }

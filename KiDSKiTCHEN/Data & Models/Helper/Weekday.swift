@@ -25,3 +25,17 @@ enum Weekday: String, CaseIterable, Identifiable, Codable {
         }
     }
 }
+
+// MARK: - Wochenstart (echte Wochen-Navigation, 18.7.)
+extension Date {
+    /// Montag 00:00 der Woche mit Versatz (0 = aktuelle Woche). Eine Quelle für
+    /// WeekPlanView UND die Persistenzschlüssel in Preferences.
+    static func kkWeekStart(offset: Int = 0) -> Date {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // Calendar.weekday: 1=So … 7=Sa. Tage seit Montag:
+        let daysSinceMon = (cal.component(.weekday, from: today) - 2 + 7) % 7
+        let monday = cal.date(byAdding: .day, value: -daysSinceMon, to: today) ?? today
+        return cal.date(byAdding: .weekOfYear, value: offset, to: monday) ?? monday
+    }
+}

@@ -113,6 +113,9 @@ final class Preferences {
     }
 
     private init() {
+        // Eltern-Sperre standardmäßig AKTIV (Kinder-App): register greift nur,
+        // solange der Nutzer den Wert nie selbst gesetzt hat.
+        defaults.register(defaults: [Keys.kidsControl: true])
         diet = DietMode(rawValue: defaults.string(forKey: Keys.diet) ?? "") ?? .all
         excluded = Set(defaults.stringArray(forKey: Keys.excluded) ?? [])
         favorites = Set(defaults.stringArray(forKey: Keys.favorites) ?? [])
@@ -143,6 +146,35 @@ final class Preferences {
             cookedDeductions = [:]
         }
         kidsControlEnabled = defaults.bool(forKey: Keys.kidsControl)
+
+        // Migration (18.7., echte Wochen-Navigation): alte Schlüssel ohne
+        // Wochen-Präfix werden der AKTUELLEN Woche zugeordnet — kein Datenverlust.
+        let wk = Preferences.weekKey(.kkWeekStart())
+        if plan.keys.contains(where: { !$0.contains("|") }) {
+            plan = Dictionary(uniqueKeysWithValues: plan.map { key, value in
+                (key.contains("|") ? key : "\(wk)|\(key)", value)
+            })
+            savePlan()
+        }
+        let sep = "\u{1F}"
+        if cooked.contains(where: { $0.components(separatedBy: sep).count == 2 }) {
+            cooked = Set(cooked.map {
+                $0.components(separatedBy: sep).count == 2 ? "\(wk)\(sep)\($0)" : $0
+            })
+            defaults.set(Array(cooked), forKey: Keys.cooked)   // didSet feuert im init nicht
+        }
+        if cookedDeductions.keys.contains(where: { $0.components(separatedBy: sep).count == 2 }) {
+            cookedDeductions = Dictionary(uniqueKeysWithValues: cookedDeductions.map { key, value in
+                (key.components(separatedBy: sep).count == 2 ? "\(wk)\(sep)\(key)" : key, value)
+            })
+            saveCookedDeductions()
+        }
+    }
+
+    /// Persistenz-Wochenschlüssel „JJJJ-MM-TT" (Montag der Woche).
+    static func weekKey(_ week: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: week)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     // MARK: Favoriten
@@ -223,24 +255,36 @@ final class Preferences {
         recipe.ingredients.filter { !pantry.contains($0.ingredient.name) }
     }
 
-    // MARK: Wochenplan
-    func plannedRecipes(_ day: Weekday) -> [String] { plan[day.rawValue] ?? [] }
-    func addToPlan(_ recipeName: String, day: Weekday) {
-        var list = plan[day.rawValue] ?? []
+    // MARK: Wochenplan (seit 18.7. je Kalenderwoche — Schlüssel „JJJJ-MM-TT|Tag";
+    // `week` default = aktuelle Woche, damit alle Aufrufer außerhalb der
+    // Wochen-Navigation unverändert die aktuelle Woche meinen)
+    private static func planKey(_ day: Weekday, _ week: Date) -> String {
+        "\(weekKey(week))|\(day.rawValue)"
+    }
+    func plannedRecipes(_ day: Weekday, week: Date = .kkWeekStart()) -> [String] {
+        plan[Preferences.planKey(day, week)] ?? []
+    }
+    func addToPlan(_ recipeName: String, day: Weekday, week: Date = .kkWeekStart()) {
+        let key = Preferences.planKey(day, week)
+        var list = plan[key] ?? []
         guard !list.contains(recipeName) else { return }
         list.append(recipeName)
-        plan[day.rawValue] = list
+        plan[key] = list
     }
-    func removeFromPlan(_ recipeName: String, day: Weekday) {
-        plan[day.rawValue]?.removeAll { $0 == recipeName }
-        if plan[day.rawValue]?.isEmpty == true { plan[day.rawValue] = nil }
+    func removeFromPlan(_ recipeName: String, day: Weekday, week: Date = .kkWeekStart()) {
+        let key = Preferences.planKey(day, week)
+        plan[key]?.removeAll { $0 == recipeName }
+        if plan[key]?.isEmpty == true { plan[key] = nil }
         // Gekocht-Marker mitnehmen — aber KEIN Rückbuchen (aus dem Plan nehmen ≠
         // „nicht gekocht"; der Vorrat bleibt, wie das Kochen ihn hinterlassen hat).
-        let key = Preferences.mealKey(day, recipeName)
-        cooked.remove(key)
-        cookedDeductions[key] = nil
+        let meal = Preferences.mealKey(day, recipeName, week: week)
+        cooked.remove(meal)
+        cookedDeductions[meal] = nil
     }
-    var plannedCount: Int { plan.values.reduce(0) { $0 + $1.count } }
+    /// Geplante Mahlzeiten der AKTUELLEN Woche (Badge/Einkaufs-Banner).
+    var plannedCount: Int {
+        Weekday.allCases.reduce(0) { $0 + plannedRecipes($1).count }
+    }
 
     private func savePlan() {
         if let data = try? JSONEncoder().encode(plan) {
@@ -355,19 +399,19 @@ extension Preferences {
     }
 
     // MARK: Teil B — „Gekocht" bucht den Vorrat ab
-    static func mealKey(_ day: Weekday, _ recipeName: String) -> String {
-        "\(day.rawValue)\u{1F}\(recipeName)"   // Unit Separator trennt sicher
+    static func mealKey(_ day: Weekday, _ recipeName: String, week: Date = .kkWeekStart()) -> String {
+        "\(weekKey(week))\u{1F}\(day.rawValue)\u{1F}\(recipeName)"   // Unit Separator trennt sicher
     }
 
-    func isCooked(_ day: Weekday, _ recipeName: String) -> Bool {
-        cooked.contains(Preferences.mealKey(day, recipeName))
+    func isCooked(_ day: Weekday, _ recipeName: String, week: Date = .kkWeekStart()) -> Bool {
+        cooked.contains(Preferences.mealKey(day, recipeName, week: week))
     }
 
     /// Markiert eine geplante Mahlzeit als gekocht und bucht die Rezept-Zutaten vom
     /// Vorrat ab: nie unter 0, nur bei passender Einheit, fehlende Zutat = kein
     /// Blocker (wird einfach nicht abgebucht). Was abgebucht wurde, wird gemerkt.
-    func markCooked(_ day: Weekday, recipe: Recipe) {
-        let key = Preferences.mealKey(day, recipe.name)
+    func markCooked(_ day: Weekday, recipe: Recipe, week: Date = .kkWeekStart()) {
+        let key = Preferences.mealKey(day, recipe.name, week: week)
         guard !cooked.contains(key) else { return }
         var deducted: [String: Int] = [:]
         for ri in recipe.ingredients {
@@ -384,8 +428,8 @@ extension Preferences {
     }
 
     /// Hebt „gekocht" auf und bucht die zuvor entnommenen Mengen exakt zurück.
-    func unmarkCooked(_ day: Weekday, recipe: Recipe) {
-        let key = Preferences.mealKey(day, recipe.name)
+    func unmarkCooked(_ day: Weekday, recipe: Recipe, week: Date = .kkWeekStart()) {
+        let key = Preferences.mealKey(day, recipe.name, week: week)
         guard cooked.contains(key) else { return }
         if let deducted = cookedDeductions[key] {
             for (name, amount) in deducted {
@@ -398,8 +442,8 @@ extension Preferences {
 
     /// Rezept-Zutaten, die beim Kochen NICHT (voll) im Vorrat waren — für die
     /// ehrliche Anzeige „diese Zutaten fehlten" nach dem Abhaken.
-    func cookMissingNames(_ day: Weekday, recipe: Recipe) -> [String] {
-        let deducted = cookedDeductions[Preferences.mealKey(day, recipe.name)] ?? [:]
+    func cookMissingNames(_ day: Weekday, recipe: Recipe, week: Date = .kkWeekStart()) -> [String] {
+        let deducted = cookedDeductions[Preferences.mealKey(day, recipe.name, week: week)] ?? [:]
         return recipe.ingredients.compactMap { ri in
             let name = ri.ingredient.name
             guard ri.unit == Ingredient.canonicalUnit(for: name) else { return nil }

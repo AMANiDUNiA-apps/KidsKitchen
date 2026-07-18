@@ -45,16 +45,9 @@ struct WeekPlanView: View {
 
     // MARK: Datum-Rechnung
 
-    /// Montag der Zielwoche (weekOffset = 0 → aktuelle Woche).
-    private var weekStart: Date {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let weekday = cal.component(.weekday, from: today)
-        // Calendar.weekday: 1=So … 7=Sa. Tage seit Montag:
-        let daysSinceMon = (weekday - 2 + 7) % 7
-        let monday = cal.date(byAdding: .day, value: -daysSinceMon, to: today) ?? today
-        return cal.date(byAdding: .weekOfYear, value: weekOffset, to: monday) ?? monday
-    }
+    /// Montag der Zielwoche (weekOffset = 0 → aktuelle Woche) — gemeinsame
+    /// Rechnung mit den Persistenzschlüsseln (Date.kkWeekStart, Weekday.swift).
+    private var weekStart: Date { .kkWeekStart(offset: weekOffset) }
 
     /// Kalender-Datum für den gegebenen Wochentag in der aktuellen Zielwoche.
     private func calendarDate(for day: Weekday) -> Date {
@@ -148,12 +141,12 @@ struct WeekPlanView: View {
         .animation(.snappy(duration: 0.25), value: selectedDay)
         .sheet(item: $addTarget) { day in
             KKDynamicSheet(animation: .snappy(duration: 0.3, extraBounce: 0)) {
-                AddRecipeToDaySheet(day: day)
+                AddRecipeToDaySheet(day: day, week: weekStart)
             }
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $cookTarget) { day in
-            CookableSuggestionsView(day: day)
+            CookableSuggestionsView(day: day, week: weekStart)
                 .presentationDragIndicator(.visible)
         }
     }
@@ -353,7 +346,7 @@ struct WeekPlanView: View {
     @ViewBuilder
     private func planRow(name: String, day: Weekday) -> some View {
         let resolved = recipe(named: name)
-        let cooked = prefs.isCooked(day, name)
+        let cooked = prefs.isCooked(day, name, week: weekStart)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 if let recipe = resolved {
@@ -379,12 +372,12 @@ struct WeekPlanView: View {
                 }
                 KKDeleteButton(accessibilityLabel: "\(name) aus \(day.rawValue) entfernen") {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        prefs.removeFromPlan(name, day: day)
+                        prefs.removeFromPlan(name, day: day, week: weekStart)
                     }
                 }
             }
             if cooked, let recipe = resolved {
-                let missing = prefs.cookMissingNames(day, recipe: recipe)
+                let missing = prefs.cookMissingNames(day, recipe: recipe, week: weekStart)
                 if !missing.isEmpty {
                     Label(missing.count == 1
                           ? "\(missing[0]) war nicht im Vorrat"
@@ -402,8 +395,8 @@ struct WeekPlanView: View {
     private func cookButton(recipe: Recipe, day: Weekday, cooked: Bool) -> some View {
         Button {
             withAnimation(.snappy(duration: 0.25)) {
-                if cooked { prefs.unmarkCooked(day, recipe: recipe) }
-                else { prefs.markCooked(day, recipe: recipe) }
+                if cooked { prefs.unmarkCooked(day, recipe: recipe, week: weekStart) }
+                else { prefs.markCooked(day, recipe: recipe, week: weekStart) }
             }
         } label: {
             Image(systemName: cooked ? "checkmark.circle.fill" : "circle")
@@ -426,13 +419,13 @@ struct WeekPlanView: View {
 
     private var presentCategories: [RecipeCategory] {
         let cats = Set(Weekday.allCases
-            .flatMap { prefs.plannedRecipes($0) }
+            .flatMap { prefs.plannedRecipes($0, week: weekStart) }
             .compactMap { recipe(named: $0)?.category })
         return RecipeCategory.allCases.filter { cats.contains($0) }
     }
 
     private func visibleNames(_ day: Weekday) -> [String] {
-        let names = prefs.plannedRecipes(day)
+        let names = prefs.plannedRecipes(day, week: weekStart)
         guard !selectedCategories.isEmpty else { return names }
         return names.filter { name in
             guard let category = recipe(named: name)?.category else { return false }
@@ -444,6 +437,8 @@ struct WeekPlanView: View {
 // MARK: - AddRecipeToDaySheet (A2: alle hardcodierten Radii → Theme-Token)
 private struct AddRecipeToDaySheet: View {
     let day: Weekday
+    /// Wochenstart der angezeigten Woche — Hinzufügen trifft GENAU diese Woche.
+    let week: Date
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
     @State private var settings: ThemeSettings = .shared
@@ -451,7 +446,7 @@ private struct AddRecipeToDaySheet: View {
     @State private var search = ""
 
     private var candidates: [Recipe] {
-        let planned = Set(prefs.plannedRecipes(day))
+        let planned = Set(prefs.plannedRecipes(day, week: week))
         return viewModel.recipes
             .filter { !planned.contains($0.name) }
             .filter { search.isEmpty || $0.name.localizedStandardContains(search) }
@@ -506,7 +501,7 @@ private struct AddRecipeToDaySheet: View {
                         ForEach(candidates) { recipe in
                             Button {
                                 withAnimation(.snappy(duration: 0.2)) {
-                                    prefs.addToPlan(recipe.name, day: day)
+                                    prefs.addToPlan(recipe.name, day: day, week: week)
                                 }
                                 dismiss()
                             } label: {

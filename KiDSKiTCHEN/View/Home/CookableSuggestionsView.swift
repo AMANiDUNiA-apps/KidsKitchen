@@ -18,6 +18,8 @@ import SwiftUI
 struct CookableSuggestionsView: View {
     /// Zieltag, falls aus dem Wochenplan geöffnet — dann ordnet ein Tippen zu.
     var day: Weekday?
+    /// Wochenstart der Zielwoche (Zuordnen aus dem Wochenplan trifft diese Woche).
+    var week: Date = .kkWeekStart()
     @State private var prefs: Preferences = .shared
     @State private var viewModel: RecipeListViewModel = .shared
     @State private var settings: ThemeSettings = .shared
@@ -26,7 +28,7 @@ struct CookableSuggestionsView: View {
     private var matches: [CookableMatch] {
         var all = prefs.cookableSuggestions(from: viewModel.recipes)
         if let day {
-            let planned = Set(prefs.plannedRecipes(day))
+            let planned = Set(prefs.plannedRecipes(day, week: week))
             all = all.filter { !planned.contains($0.recipe.name) }
         }
         return all
@@ -69,7 +71,7 @@ struct CookableSuggestionsView: View {
         if let day {
             Button {
                 withAnimation(.snappy(duration: 0.2)) {
-                    prefs.addToPlan(match.recipe.name, day: day)
+                    prefs.addToPlan(match.recipe.name, day: day, week: week)
                 }
                 dismiss()
             } label: {

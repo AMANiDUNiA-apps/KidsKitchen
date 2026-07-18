@@ -317,7 +317,9 @@ struct ParentalGateChallenge {
     }
 }
 
-private struct ParentalGateOverlay: View {
+// Nicht private: auch ThemeSettingsView legt das Umschalten der Eltern-Sperre
+// hinter dieselbe Freigabehürde (Terra-Befund 18.7.).
+struct ParentalGateOverlay: View {
     let challenge: ParentalGateChallenge
     let settings: ThemeSettings
     let onSuccess: () -> Void
