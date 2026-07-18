@@ -60,11 +60,11 @@ enum KKThemeSettingsDebugCheck {
     /// 3er-Limit fachlich: ein 4. Eintrag im (z. B. manipulierten) JSON wird beim
     /// Laden gekappt, nicht nur im UI verhindert.
     private static func checkCodecCapsAtThree() {
-        let themes = (1...4).map { makeTheme(id: "custom-cap-\($0)", name: "T\($0)") }
+        let themes = (1...4).map { makeTheme(id: "custom-\(UUID().uuidString)", name: "T\($0)") }
         guard let data = CustomThemesCodec.encode(themes) else {
             assertionFailure("Encode darf nicht fehlschlagen"); return
         }
-        assert(CustomThemesCodec.decode(data).count == 3, "Mehr als 3 Einträge im JSON müssen gekappt werden")
+        assert(CustomThemesCodec.decode(data).count == 3, "Mehr als 3 gültige Einträge im JSON müssen gekappt werden")
     }
 
     /// Beschädigtes JSON → leere Liste, kein Crash (ThemeSettings fällt danach auf storybook).
