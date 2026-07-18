@@ -273,7 +273,7 @@ struct Rezepte: View {
                 Menu {
                     ForEach(Weekday.allCases) { day in
                         Button(day.rawValue) {
-                            prefs.addToPlan(recipe.name, day: day)
+                            prefs.addToPlan(recipe.name, day: day, week: .kkWeekStart())
                             flashToast(.init(icon: "calendar.badge.plus",
                                              title: "Zum Wochenplan hinzugefügt",
                                              subTitle: day.rawValue,

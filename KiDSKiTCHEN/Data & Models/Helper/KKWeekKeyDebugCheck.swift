@@ -2,12 +2,14 @@
 //  KKWeekKeyDebugCheck.swift
 //  KiDSKiTCHEN
 //
-//  Selbst-Check für die wochendatierte Persistenz (planKey/kkWeekStart). Das
+//  Selbst-Check für die wochendatierte Persistenz (kkWeekStart/weekKey). Das
 //  Projekt hat kein Xcode-Testtarget (Weiterbau 18.7., BRIEF-kk-endstrecke) —
 //  daher als DEBUG-Assert direkt beim App-Start statt XCTest/Swift Testing.
-//  Prüft den im Brief benannten Risikofall: eine für „nächste Woche" geplante
-//  Mahlzeit muss unter dem Key der NÄCHSTEN Woche landen, nicht der aktuellen
-//  (bool-/Default-Falle bei `week:`-Parametern mit Default).
+//  REINE Key-Rechnung, fasst KEINEN echten Store an (Terra-Review 18.7.:
+//  kein Schreiben in Preferences.shared/Nutzerdaten). Der Praxis-Pfad
+//  „nächste Woche darf nicht in der aktuellen landen" ist seitdem strukturell
+//  gesichert: die mutierenden Plan-/Koch-Methoden haben keinen week-Default
+//  mehr — jeder Aufrufer muss die Woche explizit nennen (Compiler erzwingt das).
 //
 
 import Foundation
@@ -22,22 +24,14 @@ enum KKWeekKeyDebugCheck {
         let days = Calendar.current.dateComponents([.day], from: thisWeek, to: nextWeek).day
         assert(days == 7, "kkWeekStart(offset: 1) sollte 7 Tage nach offset: 0 liegen, war \(String(describing: days))")
 
-        // 2) Unterschiedliche Wochen-Keys für denselben Tag.
-        let keyThisWeek = Preferences.weekKey(thisWeek)
-        let keyNextWeek = Preferences.weekKey(nextWeek)
-        assert(keyThisWeek != keyNextWeek, "Wochen-Keys dürfen sich nicht gleichen: \(keyThisWeek)")
+        // 2) Unterschiedliche Wochen → unterschiedliche Persistenz-Keys.
+        assert(Preferences.weekKey(thisWeek) != Preferences.weekKey(nextWeek),
+               "Wochen-Keys dürfen sich nicht gleichen: \(Preferences.weekKey(thisWeek))")
 
-        // 3) Praxis-Fall: für „nächste Woche" geplantes Rezept landet NICHT
-        //    unter dem Key der aktuellen Woche.
-        let prefs = Preferences.shared
-        let probeRecipe = "__kkWeekKeyDebugCheck__"
-        prefs.addToPlan(probeRecipe, day: .mon, week: nextWeek)
-        defer { prefs.removeFromPlan(probeRecipe, day: .mon, week: nextWeek) }
-
-        assert(!prefs.plannedRecipes(.mon, week: thisWeek).contains(probeRecipe),
-               "Für nächste Woche geplantes Rezept ist fälschlich in der aktuellen Woche gelandet")
-        assert(prefs.plannedRecipes(.mon, week: nextWeek).contains(probeRecipe),
-               "Für nächste Woche geplantes Rezept fehlt unter dem Key der nächsten Woche")
+        // 3) Key-Format bleibt „JJJJ-MM-TT" (10 Zeichen) — Plan-Keys hängen
+        //    „|Tag" an dieses Präfix, ein Formatbruch würde Alt-Daten verwaisen.
+        assert(Preferences.weekKey(nextWeek).count == 10,
+               "weekKey-Format erwartet JJJJ-MM-TT, war: \(Preferences.weekKey(nextWeek))")
     }
 }
 #endif

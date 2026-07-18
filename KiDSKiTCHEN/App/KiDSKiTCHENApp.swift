@@ -39,7 +39,9 @@ struct KiDSKiTCHENApp: App {
                 }
             }
             .task {
-                try? await Task.sleep(for: .seconds(1.2))
+                // Abgebrochener Task (Scene weg) darf showSplash nicht mehr anfassen —
+                // `try?` würde die CancellationError schlucken und trotzdem ausblenden.
+                guard (try? await Task.sleep(for: .seconds(1.2))) != nil else { return }
                 withAnimation(.easeInOut(duration: 0.4)) { showSplash = false }
             }
             // Typo-Standard (Jay, 3.7.): Serifen global, Mono nur für IDs/Code

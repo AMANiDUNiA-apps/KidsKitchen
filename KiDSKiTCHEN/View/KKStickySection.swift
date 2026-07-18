@@ -20,16 +20,16 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
     @ViewBuilder var header: Header
     @ViewBuilder var minimisedHeader: MinimisedHeader
     /// Für die Höhe des Voll-Headers, um Minimiert-Header und Maske korrekt zu platzieren.
-    /// Startwert NICHT .zero (Ruckler-Fix 18.7.): bis `onGeometryChange` unten die echte
-    /// Höhe misst, rechnen Maske/Hintergrund sonst kurz mit einer ~4pt-Kopfzeile statt der
-    /// echten ~44pt — auf der ersten Karte kollabiert dadurch für einen Frame der ganze
-    /// Wochenplan sichtbar nach oben (das vom Screenshot gemeldete „Tab-Bar schwebt mitten
-    /// über der Liste"), bis ein Scroll die Geometrie neu auflöst. Realistische Schätzung
-    /// der Voll-Header-Höhe (Serifen-Titel + Datumszeile) macht den ersten Frame fast
-    /// deckungsgleich mit dem gemessenen Wert.
+    @State private var headerSize: CGSize = .zero
+    /// Gemessene Header-Höhe; vor der ersten Messung die Schätzung aus der Config
+    /// (Ruckler-Fix 18.7.): mit .zero rechnen Maske/Hintergrund für einen Frame mit
+    /// einer ~0pt-Kopfzeile — die Karte kollabiert sichtbar, bis ein Scroll die
+    /// Geometrie neu auflöst (Jays „Tab-Bar schwebt mitten über der Liste"-Screenshot).
     /// ponytail: fixe Schätzung, kein Messen vor dem ersten Layout — bei sehr großer
-    /// Dynamic-Type-Einstellung bleibt ein kleinerer Rest-Sprung; Kern (das ~40pt-Delta) ist behoben.
-    @State private var headerSize: CGSize = CGSize(width: 0, height: 44)
+    /// Dynamic-Type-Einstellung bleibt ein kleiner Rest-Sprung; Kern (~40pt-Delta) behoben.
+    private var resolvedHeaderHeight: CGFloat {
+        headerSize == .zero ? config.estimatedHeaderHeight : headerSize.height
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
@@ -68,7 +68,7 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
             GeometryReader { proxy in
                 let rect = proxy.frame(in: .named("KKSECTION"))
                 let viewHeight = proxy.size.height
-                let headerHeight = headerSize.height + config.sectionPadding + config.minimisedHeaderOffset
+                let headerHeight = resolvedHeaderHeight + config.sectionPadding + config.minimisedHeaderOffset
                 let bottomPadding = min(max(rect.minY, 0), viewHeight - headerHeight)
                 RoundedRectangle(cornerRadius: config.cornerRadius)
                     .padding(.bottom, bottomPadding)
@@ -78,7 +78,7 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
             GeometryReader { proxy in
                 let rect = proxy.frame(in: .named("KKSECTION"))
                 let viewHeight = proxy.size.height
-                let headerHeight = headerSize.height + config.sectionPadding + config.minimisedHeaderOffset
+                let headerHeight = resolvedHeaderHeight + config.sectionPadding + config.minimisedHeaderOffset
                 let bottomPadding = min(max(rect.minY, 0), viewHeight - headerHeight)
                 RoundedRectangle(cornerRadius: config.cornerRadius)
                     .fill(config.background)
@@ -86,10 +86,10 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
             }
         }
         .compositingGroup()
-        .visualEffect { [headerSize] content, proxy in
+        .visualEffect { [resolvedHeaderHeight] content, proxy in
             let rect = proxy.frame(in: .scrollView(axis: .vertical))
             let minY = rect.minY
-            let headerHeight = headerSize.height + config.sectionPadding + config.minimisedHeaderOffset
+            let headerHeight = resolvedHeaderHeight + config.sectionPadding + config.minimisedHeaderOffset
             let cutoffHeight = proxy.size.height - headerHeight
             let distance = abs(min(cutoffHeight + minY, 0))
             let progress = max(min(distance / config.fadeDistance, 1), 0)
@@ -112,6 +112,10 @@ struct KKStickySection<Content: View, Header: View, MinimisedHeader: View>: View
         var headerFadeDistance: CGFloat = 15
         var fadeDistance: CGFloat = 45
         var fadeScale: CGFloat = 0.05
+        /// Geschätzte Voll-Header-Höhe für den allerersten Frame (vor der Messung) —
+        /// Nutzer der Komponente setzen sie passend zu ihrem Header (Dynamic-Type-
+        /// Grenze: bei sehr großen Schriftstufen weicht die Schätzung stärker ab).
+        var estimatedHeaderHeight: CGFloat = 44
     }
 }
 

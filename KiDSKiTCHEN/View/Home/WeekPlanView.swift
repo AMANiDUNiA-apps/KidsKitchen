@@ -103,7 +103,9 @@ struct WeekPlanView: View {
                         // A2: Karten-Radius + -Fläche der Sticky-Karte aus den Theme-Token.
                         KKStickySection(config: .init(
                             cornerRadius: settings.cardCornerRadius,
-                            background: AnyShapeStyle(settings.theme.cardSurface.opacity(settings.cardOpacity))
+                            background: AnyShapeStyle(settings.theme.cardSurface.opacity(settings.cardOpacity)),
+                            // Erst-Frame-Schätzung: Serifen-Titel (~title3) + Datumszeile.
+                            estimatedHeaderHeight: 44
                         )) {
                             dayContent(day)
                         } header: {

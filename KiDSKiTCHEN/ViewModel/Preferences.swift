@@ -276,14 +276,17 @@ final class Preferences {
     func plannedRecipes(_ day: Weekday, week: Date = .kkWeekStart()) -> [String] {
         plan[Preferences.planKey(day, week)] ?? []
     }
-    func addToPlan(_ recipeName: String, day: Weekday, week: Date = .kkWeekStart()) {
+    // Mutierende Plan-/Koch-Methoden: `week` VERPFLICHTEND (Terra-Review 18.7.) —
+    // ein vergessener Default kann eine „nächste Woche"-Planung sonst still in
+    // der aktuellen Woche ablegen. Lese-Methoden behalten den Default (aktuelle Woche).
+    func addToPlan(_ recipeName: String, day: Weekday, week: Date) {
         let key = Preferences.planKey(day, week)
         var list = plan[key] ?? []
         guard !list.contains(recipeName) else { return }
         list.append(recipeName)
         plan[key] = list
     }
-    func removeFromPlan(_ recipeName: String, day: Weekday, week: Date = .kkWeekStart()) {
+    func removeFromPlan(_ recipeName: String, day: Weekday, week: Date) {
         let key = Preferences.planKey(day, week)
         plan[key]?.removeAll { $0 == recipeName }
         if plan[key]?.isEmpty == true { plan[key] = nil }
@@ -422,7 +425,7 @@ extension Preferences {
     /// Markiert eine geplante Mahlzeit als gekocht und bucht die Rezept-Zutaten vom
     /// Vorrat ab: nie unter 0, nur bei passender Einheit, fehlende Zutat = kein
     /// Blocker (wird einfach nicht abgebucht). Was abgebucht wurde, wird gemerkt.
-    func markCooked(_ day: Weekday, recipe: Recipe, week: Date = .kkWeekStart()) {
+    func markCooked(_ day: Weekday, recipe: Recipe, week: Date) {
         let key = Preferences.mealKey(day, recipe.name, week: week)
         guard !cooked.contains(key) else { return }
         var deducted: [String: Int] = [:]
@@ -440,7 +443,7 @@ extension Preferences {
     }
 
     /// Hebt „gekocht" auf und bucht die zuvor entnommenen Mengen exakt zurück.
-    func unmarkCooked(_ day: Weekday, recipe: Recipe, week: Date = .kkWeekStart()) {
+    func unmarkCooked(_ day: Weekday, recipe: Recipe, week: Date) {
         let key = Preferences.mealKey(day, recipe.name, week: week)
         guard cooked.contains(key) else { return }
         if let deducted = cookedDeductions[key] {
