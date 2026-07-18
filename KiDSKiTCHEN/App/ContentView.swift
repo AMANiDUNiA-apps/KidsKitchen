@@ -45,7 +45,9 @@ struct ContentView: View {
             }
         }
         .tint(settings.theme.accent)
-        .preferredColorScheme(settings.theme.isDark ? .dark : .light)
+        // App-Erscheinung (System/Hell/Dunkel) wird am echten App-Root gesetzt
+        // (KiDSKiTCHENApp), NICHT hier — Team-Runde v2 #7: getrennt von
+        // theme.isDark, das nur die Kartenfarben bestimmt.
         .safeAreaInset(edge: .bottom, spacing: 10) {
             VStack(spacing: 10) {
                 KKCookingMiniBar(session: cookingSession)
