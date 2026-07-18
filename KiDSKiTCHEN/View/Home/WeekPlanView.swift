@@ -37,6 +37,8 @@ struct WeekPlanView: View {
     @State private var addTarget: Weekday?
     @State private var cookTarget: Weekday?
     @State private var selectedDay: Weekday? = Weekday.allCases.first
+    @State private var scrollTargetDay: Weekday?
+    @State private var didPrepareInitialScroll = false
     @State private var selectedCategories: [RecipeCategory] = []
     @Namespace private var stripNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -123,7 +125,7 @@ struct WeekPlanView: View {
                 // sein Voll-Header/Minimiert-Übergang komplett ablaufen kann.
                 .padding(.bottom, 120)
             }
-            .scrollPosition(id: $selectedDay, anchor: .top)
+            .scrollPosition(id: $scrollTargetDay, anchor: .top)
             // Kein opaker Hintergrund — KKAnimatedBackground (MeshGradient, bau/air)
             // liegt hinter dem gesamten Screen und soll durchscheinen.
             .background(.clear)
@@ -142,7 +144,15 @@ struct WeekPlanView: View {
         .kkSettingsGear()
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy(duration: 0.25), value: selectedDay)
-        .onChange(of: weekOffset) { _, _ in pruneSelectedCategories() }
+        .task { await prepareInitialScrollIfNeeded() }
+        .onChange(of: scrollTargetDay) { _, newValue in
+            guard didPrepareInitialScroll, let newValue else { return }
+            selectedDay = newValue
+        }
+        .onChange(of: weekOffset) { _, _ in
+            pruneSelectedCategories()
+            resetScrollToSelectedDay()
+        }
         .onChange(of: presentCategories) { _, _ in pruneSelectedCategories() }
         .sheet(item: $addTarget) { day in
             KKDynamicSheet(animation: .snappy(duration: 0.3, extraBounce: 0)) {
@@ -153,6 +163,27 @@ struct WeekPlanView: View {
         .sheet(item: $cookTarget) { day in
             CookableSuggestionsView(day: day, week: weekStart)
                 .presentationDragIndicator(.visible)
+        }
+    }
+
+    @MainActor
+    private func prepareInitialScrollIfNeeded() async {
+        guard !didPrepareInitialScroll else { return }
+        selectedDay = Weekday.allCases.first
+        scrollTargetDay = nil
+        await Task.yield()
+        scrollTargetDay = selectedDay
+        didPrepareInitialScroll = true
+    }
+
+    private func resetScrollToSelectedDay() {
+        scrollOffset = 0
+        let target = selectedDay ?? Weekday.allCases.first
+        selectedDay = target
+        scrollTargetDay = nil
+        Task { @MainActor in
+            await Task.yield()
+            scrollTargetDay = target
         }
     }
 
@@ -231,7 +262,10 @@ struct WeekPlanView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    withAnimation(.snappy(duration: 0.25)) { selectedDay = day }
+                    withAnimation(.snappy(duration: 0.25)) {
+                        selectedDay = day
+                        scrollTargetDay = day
+                    }
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(day.rawValue + (isToday(day) ? ", heute" : "")
@@ -254,6 +288,7 @@ struct WeekPlanView: View {
             withAnimation(.snappy(duration: 0.25)) {
                 weekOffset += 1
                 selectedDay = Weekday.allCases.first
+                scrollTargetDay = Weekday.allCases.first
             }
         } label: {
             HStack {
