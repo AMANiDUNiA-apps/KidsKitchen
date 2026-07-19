@@ -24,13 +24,10 @@ final class SavedRecipeRepository {
     /// Für Rückgängig/Wiederholen-Buttons in der Ansicht (SavedRecipesView).
     var undoManager: UndoManager? { context.undoManager }
 
+    /// Rebuild P3: EIN app-weiter Container (KKDataStore) statt eines eigenen
+    /// privaten Containers je Repository.
     private init() {
-        do {
-            container = try ModelContainer(for: SavedRecipe.self)
-            container.mainContext.undoManager = UndoManager()
-        } catch {
-            fatalError("SwiftData-Container konnte nicht erstellt werden: \(error)")
-        }
+        container = KKDataStore.container
     }
 
     /// Alle gespeicherten Rezepte, neueste zuerst.
