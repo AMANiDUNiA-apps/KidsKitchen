@@ -32,11 +32,11 @@ final class SavedRecipe {
         self.details = recipe.details
         self.imageURL = recipe.imageURL
         self.imageData = imageData
-        self.kcal = recipe.nutrition.kcal
-        self.protein = recipe.nutrition.protein
-        self.carbs = recipe.nutrition.carbs
-        self.fat = recipe.nutrition.fat
-        self.fiber = recipe.nutrition.fiber
+        self.kcal = recipe.nutrition.kcal ?? 0
+        self.protein = recipe.nutrition.protein ?? 0
+        self.carbs = recipe.nutrition.carbs ?? 0
+        self.fat = recipe.nutrition.fat ?? 0
+        self.fiber = recipe.nutrition.fiber ?? 0
         self.servings = recipe.servings
         self.prepTime = recipe.prepTime
         self.cookTime = recipe.cookTime

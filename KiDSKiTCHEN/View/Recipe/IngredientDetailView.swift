@@ -65,7 +65,7 @@ struct IngredientFactsSections: View {
     @State private var depth: NutritionDepth = .mini
     @State private var mode: NutritionMode = .kids
 
-    private var facts: NutritionFacts? { NutritionFacts.bls(for: ingredient.name) }
+    private var facts: Nutrition? { Nutrition.bls(for: ingredient.name) }
 
     var body: some View {
         Group {
@@ -94,7 +94,7 @@ struct IngredientFactsSections: View {
                 }
 
                 KKCard {
-                    Text("Quelle: Bundeslebensmittelschlüssel — \(facts.source)")
+                    Text("Quelle: Bundeslebensmittelschlüssel — \(facts.source ?? "BLS")")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

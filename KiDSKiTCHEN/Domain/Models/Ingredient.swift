@@ -2,23 +2,20 @@
 //  Ingredient.swift
 //  KiDSKiTCHEN
 //
-//  Created by Claude Fable 5 on 02.07.26.
-//  Klasse (Referenztyp!) — ViewModel.checkIngredientStatus mutiert isSelected
-//  über die Referenz. Felder abgeleitet aus Recipes/Meal.swift (Oktober 25).
+//  Rebuild P2 (Domain): reiner Werttyp — kein `@Observable`, keine `isSelected`
+//  im Modell. UI-Auswahlzustand (Picker) lebt jetzt im jeweiligen ViewModel
+//  (siehe RecipeEditorViewModel.selectedIngredientIDs), nicht mehr am Datenmodell.
 //
 
 import Foundation
-import Observation
 
 // MARK: - Ingredient
-@Observable
-class Ingredient: Identifiable, Hashable {
+struct Ingredient: Identifiable, Hashable, Codable {
     let id: UUID
     var name: String
     var category: IngredientCategory
     var imageURL: String?
     var details: String?
-    var isSelected: Bool
     /// Kanonische Maßeinheit dieser Zutat für Vorrat/Einkauf (g/ml/Stück …).
     /// KEINE Umrechnung — die reale Maßeinheit der Zutat (Milch → ml, Ei → Stück,
     /// Mehl → g). Default `.gram` deckt alle Schütt-/Wiegezutaten ab.
@@ -30,7 +27,6 @@ class Ingredient: Identifiable, Hashable {
         category: IngredientCategory = .other,
         imageURL: String? = nil,
         details: String? = nil,
-        isSelected: Bool = false,
         unit: IngredientUnit = .gram
     ) {
         self.id = id
@@ -38,13 +34,8 @@ class Ingredient: Identifiable, Hashable {
         self.category = category
         self.imageURL = imageURL
         self.details = details
-        self.isSelected = isSelected
         self.unit = unit
     }
-
-    // MARK: - Hashable
-    static func == (lhs: Ingredient, rhs: Ingredient) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     // MARK: - Mocks
     static let longMock = Ingredient(

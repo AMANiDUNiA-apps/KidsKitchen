@@ -13,29 +13,8 @@
 
 import SwiftUI
 
-// MARK: - Namens-Normalisierung → Asset-Name
-extension Ingredient {
-    /// Normalisiert einen deutschen Zutatnamen auf den Datei-Stamm der Bild-
-    /// Assets (z. B. „Süßkartoffel" → „suesskartoffel", „Öl" → „oel").
-    /// Muss mit der Pipeline-Normalisierung übereinstimmen (prompts.json).
-    static func imageAssetKey(for name: String) -> String {
-        var s = name.lowercased()
-        s = s.replacingOccurrences(of: "ä", with: "ae")
-        s = s.replacingOccurrences(of: "ö", with: "oe")
-        s = s.replacingOccurrences(of: "ü", with: "ue")
-        s = s.replacingOccurrences(of: "ß", with: "ss")
-        return String(s.unicodeScalars.filter { CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789").contains($0) })
-    }
-
-    /// Asset-Name, wenn für diese Zutat ein echtes Bild im Katalog liegt, sonst nil.
-    var imageAssetName: String? {
-        let key = Ingredient.imageAssetKey(for: name)
-        return IngredientImageCatalog.names.contains(key) ? key : nil
-    }
-
-    /// True, wenn ein fotorealistisches Zutat-Bild existiert (sonst Kategorie-Symbol).
-    var hasIngredientImage: Bool { imageAssetName != nil }
-}
+// Namens-Normalisierung/Katalog-Zugehörigkeit (imageAssetKey/imageAssetName/
+// hasIngredientImage) sitzen seit Rebuild P2 in Domain/Matching/IngredientImageCatalog.swift.
 
 // MARK: - IngredientImageView
 /// Zeigt das freigestellte Zutat-Foto (Alpha, hell/dunkel-tauglich) in einem

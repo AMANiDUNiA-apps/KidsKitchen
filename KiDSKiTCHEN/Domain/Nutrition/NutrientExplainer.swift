@@ -34,8 +34,8 @@ struct NutrientEntry {
 }
 
 // MARK: - NutrientExplainer
-/// Statisches Nachschlagewerk: NutritionFacts-Feldname → Erklär-Text.
-/// Schlüssel entsprechen den Eigenschaften in NutritionFacts.swift.
+/// Statisches Nachschlagewerk: Nutrition-Feldname → Erklär-Text.
+/// Schlüssel entsprechen den Eigenschaften in Nutrition.swift.
 enum NutrientExplainer {
 
     static let entries: [String: NutrientEntry] = [

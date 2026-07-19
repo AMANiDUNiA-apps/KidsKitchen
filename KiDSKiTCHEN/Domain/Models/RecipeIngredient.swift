@@ -9,7 +9,7 @@
 import Foundation
 
 // MARK: - RecipeIngredient
-struct RecipeIngredient: Identifiable {
+struct RecipeIngredient: Identifiable, Codable, Hashable {
     let id: UUID
     var ingredient: Ingredient
     var amount: Double

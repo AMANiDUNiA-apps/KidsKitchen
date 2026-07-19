@@ -4,7 +4,8 @@
 //
 //  Created by Claude Fable 5 on 03.07.26.
 //  In-App-Entsprechung der Nährwert-Berechnung (pipelines/nutrition-calc.sql):
-//  Zutat → Gramm → NutritionFacts × g/100 → summieren → ÷ Portionen.
+//  Zutat → Gramm → BLS-Nutrition × g/100 → summieren → ÷ Portionen.
+//  Rebuild P2: `NutritionFacts.bls` → `Nutrition.bls` (ein Modell, s. Nutrition.swift).
 //
 
 import Foundation
@@ -31,12 +32,12 @@ extension RecipeIngredient {
 }
 
 extension Recipe {
-    /// Aus den Zutaten berechnete Nährwerte PRO PORTION (nutzt NutritionFacts.blsSeed).
+    /// Aus den Zutaten berechnete Nährwerte PRO PORTION (nutzt Nutrition.blsSeed).
     /// Zutaten ohne hinterlegte Werte werden übersprungen.
     var computedNutrition: Nutrition {
         var kcal = 0.0, protein = 0.0, carbs = 0.0, fat = 0.0, fiber = 0.0
         for item in ingredients {
-            guard let facts = NutritionFacts.bls(for: item.ingredient.name) else { continue }
+            guard let facts = Nutrition.bls(for: item.ingredient.name) else { continue }
             let factor = item.grams / 100
             kcal += (facts.kcal ?? 0) * factor
             protein += (facts.protein ?? 0) * factor
@@ -65,7 +66,7 @@ extension Recipe {
     /// Anteil der Zutaten mit hinterlegten Nährwerten (0…1) — Vertrauensmaß.
     var nutritionCoverage: Double {
         guard !ingredients.isEmpty else { return 0 }
-        let known = ingredients.filter { NutritionFacts.bls(for: $0.ingredient.name) != nil }.count
+        let known = ingredients.filter { Nutrition.bls(for: $0.ingredient.name) != nil }.count
         return Double(known) / Double(ingredients.count)
     }
 }

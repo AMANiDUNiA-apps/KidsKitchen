@@ -18,9 +18,10 @@ class IngredientViewModel {
     var amount: Double?
     var unit: IngredientUnit = .gram
     var recipeIngredient: RecipeIngredient? { viewModel.getRecipeIngredient(ingredient: ingredient)}
-    // Abgeleitet vom geteilten Ingredient (Referenztyp), damit die Zeile auch auf
-    // Änderungen von außen reagiert (z.B. „ganze Kategorie abwählen")
-    var isSelected: Bool { ingredient.isSelected }
+    // Abgeleitet aus der zentralen Auswahl im RecipeEditorViewModel (Rebuild P2:
+    // Ingredient ist ein Werttyp, kann selbst keine Auswahl mehr tragen), damit
+    // die Zeile auch auf Änderungen von außen reagiert (z.B. „ganze Kategorie abwählen").
+    var isSelected: Bool { viewModel.isSelected(ingredient) }
 
     init (ingredient: Ingredient) {
         self.ingredient = ingredient
@@ -31,10 +32,10 @@ class IngredientViewModel {
 
     func checkIsSelected() {
         if let recipeIngredient {
-            ingredient.isSelected = true
+            viewModel.selectedIngredientIDs.insert(ingredient.id)
             amount = recipeIngredient.amount
             unit = recipeIngredient.unit
-        } else { ingredient.isSelected = false }
+        } else { viewModel.selectedIngredientIDs.remove(ingredient.id) }
     }
 
     // Add Ingredient
@@ -44,13 +45,13 @@ class IngredientViewModel {
             amount: amount ?? 0,
             ingredientUnit: unit
         )
-        ingredient.isSelected = true
+        viewModel.selectedIngredientIDs.insert(ingredient.id)
     }
 
     // Delete Ingredient
     func deleteIngredient() {
         viewModel.removeRecipeIngredientByIngredient(ingredient: ingredient)
-        ingredient.isSelected = false
+        viewModel.selectedIngredientIDs.remove(ingredient.id)
     }
     
 }

@@ -9,7 +9,7 @@
 import Foundation
 
 // MARK: - Recipe
-struct Recipe: Identifiable {
+struct Recipe: Identifiable, Codable {
     let id: UUID
     var name: String
     var details: String
@@ -60,7 +60,7 @@ struct Recipe: Identifiable {
     }
 
     // MARK: - Mocks
-    /// Leeres Rezept für den „Neues Rezept"-Flow (ContentView: NewRecipe(newRecipe: .emptyMock))
+    /// Leeres Rezept für den „Neues Rezept"-Flow (RecipeEditorViewModel.newRecipe)
     static let emptyMock = Recipe()
 
     static let mock = Recipe(

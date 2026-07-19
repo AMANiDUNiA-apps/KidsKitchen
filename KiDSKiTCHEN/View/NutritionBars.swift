@@ -77,7 +77,7 @@ struct RecipeNutritionBars: View {
                 Text("Energie")
                     .font(.system(.headline, design: .serif))
                 Spacer()
-                Text("\(Int(nutrition.kcal)) kcal")
+                Text("\(Int(nutrition.kcal ?? 0)) kcal")
                     .font(.title3.bold())
                     .foregroundStyle(.orange)
             }
@@ -85,19 +85,19 @@ struct RecipeNutritionBars: View {
             MacroBar(label: "vom Tagesbedarf",
                      value: nutrition.kcal, unit: "kcal",
                      color: .orange,
-                     fraction: nutrition.kcal / ref.kcal,
+                     fraction: (nutrition.kcal ?? 0) / ref.kcal,
                      emphasized: true)
 
             Divider()
 
             MacroBar(label: "Eiweiß",       value: nutrition.protein, unit: "g",
-                     color: .blue,   fraction: nutrition.protein / ref.protein)
+                     color: .blue,   fraction: (nutrition.protein ?? 0) / ref.protein)
             MacroBar(label: "Kohlenhydrate", value: nutrition.carbs,   unit: "g",
-                     color: .orange, fraction: nutrition.carbs   / ref.carbs)
+                     color: .orange, fraction: (nutrition.carbs ?? 0)  / ref.carbs)
             MacroBar(label: "Fett",          value: nutrition.fat,     unit: "g",
-                     color: .yellow, fraction: nutrition.fat     / ref.fat)
+                     color: .yellow, fraction: (nutrition.fat ?? 0)    / ref.fat)
             MacroBar(label: "Ballaststoffe", value: nutrition.fiber,   unit: "g",
-                     color: .green,  fraction: nutrition.fiber   / ref.fiber)
+                     color: .green,  fraction: (nutrition.fiber ?? 0)  / ref.fiber)
         }
     }
 }
@@ -105,7 +105,7 @@ struct RecipeNutritionBars: View {
 // MARK: - IngredientNutritionBars  (je 100 g, aus BLS)
 /// Referenz je 100 g: kcal 400, Eiweiß 30, KH 80, Fett 40, Fiber 15, Wasser 100
 struct IngredientNutritionBars: View {
-    let facts: NutritionFacts
+    let facts: Nutrition
     let depth: NutritionDepth
 
     private let ref = (kcal: 400.0, protein: 30.0, carbs: 80.0, fat: 40.0,

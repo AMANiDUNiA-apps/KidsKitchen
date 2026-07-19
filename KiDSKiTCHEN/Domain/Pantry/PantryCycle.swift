@@ -11,22 +11,13 @@
 //  entspricht (Ingredient.seed). Passt sie nicht, fällt die Logik ehrlich auf reine
 //  Vorhandensein-Prüfung zurück (da/nicht-da), statt falsche Zahlen zu erfinden.
 //
+//  Rebuild P2: die Seed-Katalog-Nachschlagen (canonicalUnit/category für einen
+//  Namen) sitzen jetzt in Data/Seed/Ingredient+Seed.swift (Data-Schicht, kennt
+//  den Seed-Katalog) — Domain bleibt frei von Daten-Layer-Wissen, hier nur die
+//  reinen Ergebnis-Strukturen.
+//
 
 import Foundation
-
-// MARK: - Kanonische Einheit einer Zutat (nach Name)
-extension Ingredient {
-    /// Die für Vorrat/Einkauf gültige Einheit einer Zutat, anhand des Namens aus
-    /// dem kuratierten Seed. Unbekannt → `.gram` (Schütt-/Wiege-Default), wie im Modell.
-    static func canonicalUnit(for name: String) -> IngredientUnit {
-        seed.first { $0.name == name }?.unit ?? .gram
-    }
-
-    /// Kategorie einer Zutat nach Name (für Einkaufs-Vorschläge). Unbekannt → `.other`.
-    static func category(for name: String) -> IngredientCategory {
-        seed.first { $0.name == name }?.category ?? .other
-    }
-}
 
 // MARK: - PantryShortfall (Teil A: was fehlt für den Wochenplan)
 /// Ergebnis der Bedarf-Rechnung für EINE Zutat über den ganzen Wochenplan.

@@ -3,12 +3,11 @@
 //  KiDSKiTCHEN
 //
 //  Created by Joscha Amani Gaber on 25.09.25. (Original: Recipes-Projekt, Oktober 25)
-//  Portiert von Claude Fable 5 am 02.07.26 — Bild-Assets fehlen im Katalog,
-//  daher SF Symbols statt Image(.fruits) etc. Farben unverändert.
+//  Rebuild P2 (Domain): reine Warenkunde-Taxonomie, KEIN SwiftUI — Farbe/Symbol-Image
+//  liegen als Präsentations-Extension in DesignSystem/CategoryPresentation.swift.
 //
 
 import Foundation
-import SwiftUI
 
 // MARK: - IngredientCategory
 enum IngredientCategory: String, Codable, CaseIterable, Identifiable {
@@ -27,28 +26,10 @@ enum IngredientCategory: String, Codable, CaseIterable, Identifiable {
     case spices = "Gewürze"
     case other = "Sonstige"
 
-    // MARK: color
-    var color: Color {
-        switch self {
-        case .fruit: .red
-        case .vegetable: .green
-        case .cereals: .yellow
-        case .nuts: .orange
-        case .dairy: .blue
-        case .redMeat: .purple
-        case .poultry: .pink
-        case .fish: .cyan
-        case .fatsAndOils: .indigo
-        case .herbs: .teal
-        case .spices: .mint
-        case .other: .gray
-        }
-    }
-
     // MARK: title
     var title: String { rawValue }
 
-    // MARK: symbol (SF Symbols — eigene Assets folgen später auf dem Mac)
+    // MARK: symbol (SF-Symbol-Name — die SwiftUI-Image wird in DesignSystem gebaut)
     var symbolName: String {
         switch self {
         case .fruit: "apple.logo"
@@ -65,6 +46,4 @@ enum IngredientCategory: String, Codable, CaseIterable, Identifiable {
         case .other: "basket.fill"
         }
     }
-
-    var image: Image { Image(systemName: symbolName) }
 }

@@ -19,7 +19,7 @@ struct IngredientPicker: View {
                     VStack(alignment: .leading, spacing: 8) {
                         IngredientSectionHeader(
                             category: section.category,
-                            hasSelection: section.items.contains(where: \.isSelected)
+                            hasSelection: section.items.contains(where: { viewModel.isSelected($0) })
                         )
                         .padding(.horizontal, 4)
                         KKCard {

@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - RecipeInstruction
-struct RecipeInstruction: Identifiable {
+struct RecipeInstruction: Identifiable, Codable, Hashable {
     let id: UUID
     var text: String
 

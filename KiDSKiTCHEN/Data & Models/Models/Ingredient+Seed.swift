@@ -15,6 +15,22 @@
 
 import Foundation
 
+// MARK: - Kanonische Einheit/Kategorie einer Zutat (nach Name)
+// Rebuild P2: von Domain/Pantry/PantryCycle.swift hierher verschoben — die
+// Nachschau braucht den Seed-Katalog (Data-Schicht), Domain bleibt frei davon.
+extension Ingredient {
+    /// Die für Vorrat/Einkauf gültige Einheit einer Zutat, anhand des Namens aus
+    /// dem kuratierten Seed. Unbekannt → `.gram` (Schütt-/Wiege-Default), wie im Modell.
+    static func canonicalUnit(for name: String) -> IngredientUnit {
+        seed.first { $0.name == name }?.unit ?? .gram
+    }
+
+    /// Kategorie einer Zutat nach Name (für Einkaufs-Vorschläge). Unbekannt → `.other`.
+    static func category(for name: String) -> IngredientCategory {
+        seed.first { $0.name == name }?.category ?? .other
+    }
+}
+
 extension Ingredient {
     static let seed: [Ingredient] = [
         // MARK: Obst

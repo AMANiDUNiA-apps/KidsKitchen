@@ -21,23 +21,31 @@ class RecipeEditorViewModel {
     // MARK: - Zutaten-Auswahlliste (Picker)
     var ingredients: [Ingredient] = Ingredient.seed
 
+    // Rebuild P2: Ingredient ist ein reiner Werttyp ohne `isSelected` — die
+    // Auswahl lebt jetzt hier zentral, statt auf den geteilten Model-Instanzen.
+    var selectedIngredientIDs: Set<Ingredient.ID> = []
+
+    func isSelected(_ ingredient: Ingredient) -> Bool {
+        selectedIngredientIDs.contains(ingredient.id)
+    }
+
     var sortedIngredients: [Ingredient] {
         if !ingredientSearchText.isEmpty {
-            return ingredients.filter { $0.isSelected || (!$0.isSelected && $0.name.localizedCaseInsensitiveContains(ingredientSearchText)) }
+            return ingredients.filter { isSelected($0) || $0.name.localizedCaseInsensitiveContains(ingredientSearchText) }
         }
-        return ingredients.sorted { $0.isSelected && !$1.isSelected }
+        return ingredients.sorted { isSelected($0) && !isSelected($1) }
     }
 
     // MARK: - pickerSections (Kategorie-Sektionen für den IngredientPicker)
     var pickerSections: [(category: IngredientCategory, items: [Ingredient])] {
         let visible = ingredientSearchText.isEmpty
             ? ingredients
-            : ingredients.filter { $0.isSelected || $0.name.localizedStandardContains(ingredientSearchText) }
+            : ingredients.filter { isSelected($0) || $0.name.localizedStandardContains(ingredientSearchText) }
         return IngredientCategory.allCases.compactMap { category in
             let items = visible
                 .filter { $0.category == category }
                 .sorted {
-                    if $0.isSelected != $1.isSelected { return $0.isSelected }
+                    if isSelected($0) != isSelected($1) { return isSelected($0) }
                     return $0.name.localizedStandardCompare($1.name) == .orderedAscending
                 }
             return items.isEmpty ? nil : (category, items)
@@ -48,7 +56,7 @@ class RecipeEditorViewModel {
     func deselectCategory(_ category: IngredientCategory) {
         recipeIngredients.removeAll { $0.ingredient.category == category }
         for ingredient in ingredients where ingredient.category == category {
-            ingredient.isSelected = false
+            selectedIngredientIDs.remove(ingredient.id)
         }
     }
 
@@ -125,11 +133,11 @@ class RecipeEditorViewModel {
     }
 
     // MARK: - resetAllSelected
-    /// Setzt alle isSelected-Flags auf den globalen Ingredient-Instanzen zurück.
-    /// Muss nach jedem Abbruch/Speichern des Rezept-Editors aufgerufen werden,
-    /// damit der Picker beim nächsten Öffnen sauber startet.
+    /// Setzt die Auswahl zurück. Muss nach jedem Abbruch/Speichern des
+    /// Rezept-Editors aufgerufen werden, damit der Picker beim nächsten
+    /// Öffnen sauber startet.
     func resetAllSelected() {
-        for ingredient in ingredients { ingredient.isSelected = false }
+        selectedIngredientIDs.removeAll()
     }
 
     func resetEditorSession() {
@@ -153,14 +161,16 @@ class RecipeEditorViewModel {
 
     func checkStatus() {
         let selected = Set(recipeIngredients.map { $0.ingredient.name })
-        for ingredient in ingredients {
-            ingredient.isSelected = selected.contains(ingredient.name)
-        }
+        selectedIngredientIDs = Set(ingredients.filter { selected.contains($0.name) }.map(\.id))
     }
 
     // MARK: - checkIngredientStatus
     func checkIngredientStatus(ingredient: Ingredient) {
-        ingredient.isSelected = recipeIngredients.contains(where: { $0.ingredient.name == ingredient.name })
+        if recipeIngredients.contains(where: { $0.ingredient.name == ingredient.name }) {
+            selectedIngredientIDs.insert(ingredient.id)
+        } else {
+            selectedIngredientIDs.remove(ingredient.id)
+        }
     }
 
     // MARK: - getRecipeIngredient

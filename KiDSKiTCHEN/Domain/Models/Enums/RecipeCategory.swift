@@ -2,11 +2,11 @@
 //  RecipeCategory.swift
 //  KiDSKiTCHEN
 //
-//  Created by Claude Fable 5 on 02.07.26.
+//  Rebuild P2 (Domain): reine Kategorie, KEIN SwiftUI — Farbe liegt als
+//  Präsentations-Extension in DesignSystem/CategoryPresentation.swift.
 //
 
 import Foundation
-import SwiftUI
 
 // MARK: - RecipeCategory
 enum RecipeCategory: String, Codable, CaseIterable, Identifiable {
@@ -19,18 +19,6 @@ enum RecipeCategory: String, Codable, CaseIterable, Identifiable {
     case snack = "Snack"
     case baking = "Backen"
     case drink = "Getränk"
-
-    var color: Color {
-        switch self {
-        case .breakfast: .orange
-        case .mainDish:  .red
-        case .sideDish:  .green
-        case .dessert:   .pink
-        case .snack:     .mint
-        case .baking:    .brown
-        case .drink:     .cyan
-        }
-    }
 
     var symbolName: String {
         switch self {
