@@ -46,6 +46,12 @@ struct KKAnimatedBackground: View {
                 colors: colors
             )
         }
+        // Gierig füllen (wie `Color`): sonst dehnt sich der Verlauf auf gepushten
+        // Views NICHT in die Safe-Area — es blieben weiße Balken oben/unten (nur dort,
+        // Wurzel-Tabs waren ok). Diagnose 19.7. am Simulator: `Color.red` füllte randlos,
+        // der TimelineView/MeshGradient-Verbund nicht → explizit maximale Fläche fordern.
+        // (Weiße-Balken-Fix, von main d9e23ad geliftet, Rebuild P4.)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// 64 Farben (8×8, zeilenweise).
@@ -254,7 +260,7 @@ struct KKScroll<Content: View>: View {
             .padding(.vertical, 12)
         }
         .background { KKAnimatedBackground().ignoresSafeArea() }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
     }
 }
 
@@ -263,7 +269,7 @@ extension View {
     /// Durchsichtige Navigationsleiste (Jay 11.7.): kein Balken-Hintergrund, der
     /// Inhalt läuft beim Scrollen sichtbar unter Zurück-Knopf & Co. durch.
     func kkTransparentNavBar() -> some View {
-        toolbarBackground(.hidden, for: .navigationBar)
+        toolbarBackgroundVisibility(.hidden, for: .navigationBar)
     }
 
     /// Gear-Button ganz rechts in der Navigationsleiste, öffnet ThemeSettingsView.

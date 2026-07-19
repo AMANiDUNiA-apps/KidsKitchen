@@ -85,7 +85,10 @@ struct KKGlassTabBar: View {
                 Text(tab.title)
                     .font(.caption2.weight(.medium))
             }
-            .foregroundStyle(isActive ? settings.theme.accent : Color.secondary)
+            // Dunkle Themes: Color.secondary ist im System-Hell-Modus fast schwarz → unsichtbar
+            // auf dem dunklen Glass-Hintergrund. Explizit weißlich für isDark-Themes.
+            // (Weiße-Balken-Fix, von main d9e23ad geliftet, Rebuild P4.)
+            .foregroundStyle(isActive ? settings.theme.accent : (settings.theme.isDark ? Color.white.opacity(0.55) : Color.secondary))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background {

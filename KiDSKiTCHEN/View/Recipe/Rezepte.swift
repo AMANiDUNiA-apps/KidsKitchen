@@ -246,12 +246,16 @@ struct Rezepte: View {
                 }
             }
         }
-        // Kein Leisten-Titel mehr: der große Serifen-Titel steht im Inhalt (W6 Teil A),
-        // die durchsichtige Leiste zeigt nur noch Zurück-Knopf + Aktionen — sonst
-        // stünde der Name doppelt da (Gerätetest-Bild 11.7.).
+        // Kein Leisten-Titel: der große Serifen-Titel steht im Inhalt (W6 Teil A),
+        // sonst stünde der Name doppelt da (Gerätetest-Bild 11.7.). Zurück-Knopf und
+        // Aktionen bleiben die System-Standard-Elemente — kein Custom-Back-Button,
+        // keine sharedBackgroundVisibility-Trickserei (19.7. entfernt, Jay: „anständig
+        // ohne getrixe"). Die Leiste zeigt die Theme-Grundfarbe (Weiße-Balken-Fix,
+        // von main d9e23ad geliftet, Rebuild P4).
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .kkTransparentNavBar()
+        .toolbarBackground(ThemeSettings.shared.theme.backgroundColors.first ?? .clear, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
@@ -293,6 +297,7 @@ struct Rezepte: View {
                     Image(systemName: prefs.isFavorite(recipe.name) ? "heart.fill" : "heart")
                         .foregroundStyle(.pink)
                 }
+                .accessibilityLabel(prefs.isFavorite(recipe.name) ? "Favorit entfernen" : "Zu Favoriten")
             }
         }
     }

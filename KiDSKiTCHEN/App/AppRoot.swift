@@ -45,6 +45,13 @@ struct AppRoot: View {
             }
         }
         .tint(env.theme.theme.accent)
+        // Untere Safe-Area (Home-Indicator-Streifen unter der schwebenden Glas-Leiste)
+        // mit der Theme-Grundfarbe füllen — sonst schien dort reinweißes systemBackground
+        // durch (die App läuft in heller System-Erscheinung; Jay 19.7.). ShapeStyle-Form
+        // mit ignoresSafeAreaEdges: .bottom blutet zuverlässig bis zur Bildschirmkante.
+        // (Weiße-Balken-Fix, von main d9e23ad geliftet, Rebuild P4.)
+        .background(env.theme.theme.backgroundColors.first ?? Color.clear,
+                    ignoresSafeAreaEdges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 10) {
             VStack(spacing: 10) {
                 KKCookingMiniBar(session: env.cooking)
