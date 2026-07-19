@@ -121,7 +121,7 @@ struct Home: View {
                     ForEach(sections, id: \.category) { section in
                         Section {
                             ForEach(section.recipes) { recipe in
-                                NavigationLink { Rezepte(recipe: recipe) } label: {
+                                NavigationLink(value: RecipeRoute.detail(recipe.id)) {
                                     KidsRecipeRow(recipe: recipe)
                                 }
                                 .buttonStyle(.plain)
@@ -171,6 +171,18 @@ struct Home: View {
         .background { KKAnimatedBackground().ignoresSafeArea() }
         .navigationTitle("KidsKitchen")
         .kkTransparentNavBar()
+        // Rebuild P5: typisierte Navigation per ID (RecipeRoute) statt Wert-Kopie
+        // im NavigationLink — löst gegen die aktuelle Liste auf.
+        .navigationDestination(for: RecipeRoute.self) { route in
+            switch route {
+            case .detail(let id):
+                if let recipe = viewModel.recipes.first(where: { $0.id == id }) {
+                    Rezepte(recipe: recipe)
+                } else {
+                    ContentUnavailableView("Rezept nicht gefunden", systemImage: "questionmark.folder")
+                }
+            }
+        }
         .task { await viewModel.loadRecipes() }
         .searchable(text: $search, prompt: "Rezept suchen")
         .toolbar {
@@ -202,7 +214,7 @@ struct Home: View {
 
             KKCarousel(activeIndex: $weekCarouselIndex) {
                 ForEach(weeklyPicks) { recipe in
-                    NavigationLink { Rezepte(recipe: recipe) } label: {
+                    NavigationLink(value: RecipeRoute.detail(recipe.id)) {
                         WeeklyCard(recipe: recipe)
                     }
                     .buttonStyle(.plain)
@@ -300,7 +312,7 @@ struct Home: View {
                         .padding(.top, 40)
                     } else {
                         ForEach(filtered) { recipe in
-                            NavigationLink { Rezepte(recipe: recipe) } label: {
+                            NavigationLink(value: RecipeRoute.detail(recipe.id)) {
                                 KidsRecipeRow(recipe: recipe)
                             }
                             .buttonStyle(.plain)
