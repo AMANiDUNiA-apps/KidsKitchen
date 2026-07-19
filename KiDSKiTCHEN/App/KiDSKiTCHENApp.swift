@@ -12,7 +12,9 @@ struct KiDSKiTCHENApp: App {
     /// Einzige Quelle fürs Splash-Ausblenden — ein Timer, kein Wettlauf mit
     /// Datenladen (Rezepte stehen sofort aus dem Seed bereit, s. RecipeListViewModel).
     @State private var showSplash = true
-    @State private var settings: ThemeSettings = .shared
+    /// Composition-Root (Rebuild P1): einzige injizierte Abhängigkeit statt
+    /// verstreuter `.shared`-Singletons.
+    @State private var env = AppEnvironment()
 
     init() {
         // iOS 26: NavigationBar komplett transparent — kein Frosted-Hintergrund,
@@ -35,12 +37,14 @@ struct KiDSKiTCHENApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                ContentView()
+                AppRoot()
                 if showSplash {
                     SplashScreenView()
                         .transition(.opacity)
                 }
             }
+            // Composition-Root app-weit injizieren.
+            .environment(env)
             .task {
                 // Abgebrochener Task (Scene weg) darf showSplash nicht mehr anfassen —
                 // `try?` würde die CancellationError schlucken und trotzdem ausblenden.
@@ -51,7 +55,7 @@ struct KiDSKiTCHENApp: App {
             .fontDesign(.serif)
             // App-Erscheinung außen (System/Hell/Dunkel) — echter App-Root
             // (Team-Runde v2 #7). Default System (nil = folgt dem Gerät).
-            .preferredColorScheme(settings.appearanceMode.colorScheme)
+            .preferredColorScheme(env.theme.appearanceMode.colorScheme)
         }
     }
 }

@@ -1,27 +1,27 @@
 //
-//  ContentView.swift
+//  AppRoot.swift
 //  KiDSKiTCHEN
 //
-//  TabView-Navigation: Rezepte / Zutaten / Woche / Einkaufen / Mehr.
-//  Leiste: eigene Glas-Kapsel (KKGlassTabBar, Jay-Entscheid 17.7.) statt der
-//  nativen TabView-Leiste — dazu die native Leiste je Tab ausgeblendet.
+//  Neuer App-Root (Rebuild, Re-Founding P1) — ersetzt das frühere ContentView.
+//  Gleiche 5-Tab-Struktur (Rezepte / Zutaten / Woche / Einkaufen / Mehr) mit
+//  eigener Glas-Kapsel (KKGlassTabBar, Jay-Entscheid 17.7.), aber alle
+//  app-weiten Zustände kommen aus dem injizierten AppEnvironment statt aus
+//  `.shared`-Singletons. Die einzelnen Screens werden phasenweise darunter
+//  erneuert (MVP-first: P5 Kern-Screens), die App bleibt durchgehend nutzbar.
 //
-//  Rezepte-Tab: Gespeicherte Rezepte über Trailing-Toolbar erreichbar.
-//  Zutaten-Tab: Saisonkalender (Leading) + Filter & Diät (Trailing).
-//  Mehr: nur noch Rezept-Import + Einführung.
+//  UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`.
 //
 
 import SwiftUI
 
-struct ContentView: View {
-    @State private var prefs: Preferences = .shared
-    @State private var settings: ThemeSettings = .shared
+struct AppRoot: View {
+    @Environment(AppEnvironment.self) private var env
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
     @State private var activeTab: KKTab = .recipes
-    // Kochmodus-Zustand (app-weit) — für die Mini-Leiste über der Tabbar.
-    @State private var cookingSession = KKCookingSession.shared
 
     var body: some View {
+        @Bindable var cooking = env.cooking
+
         TabView(selection: $activeTab) {
             Tab(value: KKTab.recipes) {
                 NavigationStack { RezepteTabRoot() }
@@ -44,36 +44,33 @@ struct ContentView: View {
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-        .tint(settings.theme.accent)
-        // App-Erscheinung (System/Hell/Dunkel) wird am echten App-Root gesetzt
-        // (KiDSKiTCHENApp), NICHT hier — Team-Runde v2 #7: getrennt von
-        // theme.isDark, das nur die Kartenfarben bestimmt.
+        .tint(env.theme.theme.accent)
         .safeAreaInset(edge: .bottom, spacing: 10) {
             VStack(spacing: 10) {
-                KKCookingMiniBar(session: cookingSession)
+                KKCookingMiniBar(session: env.cooking)
                 KKGlassTabBar(activeTab: $activeTab, badge: badgeCount)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 6)
         }
         .environment(\.locale, Locale(identifier: "de_DE"))
-        .toolbarBackground(settings.theme.headerBackground, for: .tabBar)
+        .toolbarBackground(env.theme.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },
             set: { presented in if !presented { hasOnboarded = true } }
         )) {
             OnboardingView { hasOnboarded = true }
         }
-        .fullScreenCover(isPresented: $cookingSession.isFullScreenPresented) {
-            KKCookingModeView(session: cookingSession)
+        .fullScreenCover(isPresented: $cooking.isFullScreenPresented) {
+            KKCookingModeView(session: cooking)
         }
     }
 
-    /// Badge-Zahlen je Tab — ersetzt die vorherigen `.badge()`-Modifier der nativen Leiste.
+    /// Badge-Zahlen je Tab — ersetzt die `.badge()`-Modifier der nativen Leiste.
     private func badgeCount(_ tab: KKTab) -> Int {
         switch tab {
-        case .week: prefs.plannedCount
-        case .shopping: prefs.shopping.filter { !$0.done }.count
+        case .week: env.prefs.plannedCount
+        case .shopping: env.prefs.shopping.filter { !$0.done }.count
         default: 0
         }
     }
@@ -122,10 +119,9 @@ private struct ZutatenTabRoot: View {
 
 // MARK: - MoreView (schlank — Rezept-Import + Einführung)
 // Gespeichert → Rezepte-Tab · Filter & Diät → Zutaten-Tab
-// UI-Bauweise (Jay 10.7.): selbstgebaute Container statt `List`.
 private struct MoreView: View {
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
-    @State private var settings: ThemeSettings = .shared
+    @Environment(AppEnvironment.self) private var env
 
     var body: some View {
         KKScroll {
@@ -160,7 +156,7 @@ private struct MoreView: View {
         KKCard {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: settings.cardInnerRadius)
+                    RoundedRectangle(cornerRadius: env.theme.cardInnerRadius)
                         .fill(tint.opacity(0.15))
                         .frame(width: 40, height: 40)
                     Image(systemName: symbol)
@@ -180,5 +176,3 @@ private struct MoreView: View {
         }
     }
 }
-
-#Preview { ContentView() }
