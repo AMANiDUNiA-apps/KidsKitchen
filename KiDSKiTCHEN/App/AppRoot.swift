@@ -49,13 +49,6 @@ struct AppRoot: View {
             }
         }
         .tint(env.theme.theme.accent)
-        // Untere Safe-Area (Home-Indicator-Streifen unter der schwebenden Glas-Leiste)
-        // mit der Theme-Grundfarbe füllen — sonst schien dort reinweißes systemBackground
-        // durch (die App läuft in heller System-Erscheinung; Jay 19.7.). ShapeStyle-Form
-        // mit ignoresSafeAreaEdges: .bottom blutet zuverlässig bis zur Bildschirmkante.
-        // (Weiße-Balken-Fix, von main d9e23ad geliftet, Rebuild P4.)
-        .background(env.theme.theme.backgroundColors.first ?? Color.clear,
-                    ignoresSafeAreaEdges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 10) {
             VStack(spacing: 10) {
                 KKCookingMiniBar(session: env.cooking)
@@ -63,6 +56,18 @@ struct AppRoot: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 6)
+            // Untere Safe-Area (Home-Indicator-Streifen unter der schwebenden Glas-Leiste)
+            // mit der Theme-Grundfarbe füllen. WURZEL der „weißen Kante": diese Füllung
+            // MUSS im `safeAreaInset`-Inhalt sitzen (wie main d9e23ad, ContentView) —
+            // nur dieser Layer rendert ÜBER dem gepushten Detail-Screen. Beim Rebuild-
+            // Port rutschte sie versehentlich auf die TabView (eine Ebene zu tief); dort
+            // verdeckt das reinweiße System-`systemBackground` des gepushten Screens sie,
+            // und die Kante blieb weiß — nur auf Detail-/gepushten Views, Wurzel-Tabs
+            // waren ok. ShapeStyle-Form mit ignoresSafeAreaEdges: .bottom blutet bis zur
+            // Bildschirmkante; die getönte Fläche hinter der Glas-Kapsel lässt deren
+            // Material zugleich durchscheinend statt weiß-deckend wirken.
+            .background(env.theme.theme.backgroundColors.first ?? Color.clear,
+                        ignoresSafeAreaEdges: .bottom)
         }
         .environment(\.locale, Locale(identifier: "de_DE"))
         .onChange(of: systemScheme, initial: true) { _, scheme in
