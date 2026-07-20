@@ -30,6 +30,9 @@ struct Rezepte: View {
     @State private var servings: Int
     // Zutatenliste gestaffelt einblenden (nur ohne Reduce-Motion).
     @State private var ingredientsVisible = false
+    // Gerichtsname inline in der Kopfleiste — erst wenn der große Serifen-Titel
+    // nach oben unter die (transluzente) Leiste gescrollt ist (iOS-Standard-Handoff).
+    @State private var showInlineTitle = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
@@ -237,6 +240,19 @@ struct Rezepte: View {
                              tint: recipe.category?.color ?? .orange)
             }
         }
+        // Handoff an die Kopfleiste: den Gerichtsnamen inline einblenden, sobald der
+        // große Serifen-Titel hochgescrollt ist. contentOffset am ScrollView gemessen
+        // (robust gegen Lazy-Unload und Fling — anders als eine Frame-Messung am Titel).
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
+            // Ruhelage ≈ -116 (obere Safe-Area-Einrückung), der große 1-zeilige Titel ist
+            // bei y≈0 unter die Leiste gerutscht. ponytail: feste 40pt-Schwelle knapp
+            // danach; bei sehr langen (2-zeiligen) Namen ist der Übergang minimal früher —
+            // Feinjustierung hier, kein pixelgenaues Messen der Titelhöhe (bewusst schlank).
+            let scrolledOut = y > 40
+            if scrolledOut != showInlineTitle {
+                withAnimation(.easeInOut(duration: 0.2)) { showInlineTitle = scrolledOut }
+            }
+        }
         .inlineToast(config: toastConfig, isPresented: showToast)
         .overlay {
             if showTutorial {
@@ -246,16 +262,15 @@ struct Rezepte: View {
                 }
             }
         }
-        // Kein Leisten-Titel: der große Serifen-Titel steht im Inhalt (W6 Teil A),
-        // sonst stünde der Name doppelt da (Gerätetest-Bild 11.7.). Zurück-Knopf und
-        // Aktionen bleiben die System-Standard-Elemente — kein Custom-Back-Button,
-        // keine sharedBackgroundVisibility-Trickserei (19.7. entfernt, Jay: „anständig
-        // ohne getrixe"). Die Leiste zeigt die Theme-Grundfarbe (Weiße-Balken-Fix,
-        // von main d9e23ad geliftet, Rebuild P4).
-        .navigationTitle("")
+        // Kopfleiste transluzent wie auf allen anderen Screens (kkTransparentNavBar):
+        // der Inhalt läuft beim Scrollen sichtbar unter Zurück-Knopf & Co. durch.
+        // Der große Serifen-Titel bleibt im Inhalt (W6 Teil A, sonst abgeschnitten);
+        // der Name erscheint zusätzlich INLINE in der Leiste, aber erst wenn der große
+        // Titel weggescrollt ist (showInlineTitle) — kein Doppel-Name im Ruhezustand
+        // (Gerätetest-Bild 11.7.). Zurück-Knopf/Aktionen bleiben System-Standard.
+        // Vorher: opake Theme-Farb-Füllung (.visible) → deckender Creme-Block (Jay 20.7.).
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(ThemeSettings.shared.theme.backgroundColors.first ?? .clear, for: .navigationBar)
-        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+        .kkTransparentNavBar()
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle
@@ -273,6 +288,14 @@ struct Rezepte: View {
             showTutorial = true
         }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                // Inline-Titel: nur sichtbar, wenn der große Titel weggescrollt ist.
+                Text(showInlineTitle ? recipe.name : "")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .opacity(showInlineTitle ? 1 : 0)
+                    .accessibilityHidden(!showInlineTitle)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     ForEach(Weekday.allCases) { day in
