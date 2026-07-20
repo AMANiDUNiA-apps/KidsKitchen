@@ -16,6 +16,10 @@ import SwiftUI
 
 struct AppRoot: View {
     @Environment(AppEnvironment.self) private var env
+    // Effektives Hell/Dunkel UNTER `preferredColorScheme` (App-Root) — speist den
+    // opt-in „Automatisch"-Farbstyle (themeID == systemThemeID). Kein Zwang: greift
+    // nur, wenn der Nutzer „Automatisch" gewählt hat.
+    @Environment(\.colorScheme) private var systemScheme
     @AppStorage("kk.hasOnboarded") private var hasOnboarded = false
     @State private var activeTab: KKTab = .recipes
 
@@ -61,6 +65,9 @@ struct AppRoot: View {
             .padding(.bottom, 6)
         }
         .environment(\.locale, Locale(identifier: "de_DE"))
+        .onChange(of: systemScheme, initial: true) { _, scheme in
+            env.theme.systemIsDark = (scheme == .dark)
+        }
         .toolbarBackground(env.theme.theme.headerBackground, for: .tabBar)
         .fullScreenCover(isPresented: Binding(
             get: { !hasOnboarded },

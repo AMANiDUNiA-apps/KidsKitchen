@@ -83,6 +83,8 @@ struct ThemeSettingsView: View {
             KKSectionHeader(title: "Farbstyle", systemImage: "paintpalette")
                 .padding(.horizontal, 4)
 
+            systemThemeCard
+
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(KKTheme.all) { theme in
                     ThemeCard(theme: theme, isSelected: settings.themeID == theme.id) {
@@ -129,6 +131,44 @@ struct ThemeSettingsView: View {
         withAnimation(.spring(response: 0.3)) {
             settings.themeID = id
         }
+    }
+
+    // MARK: „Automatisch" — Farbstyle folgt System-Hell/Dunkel (opt-in, kein Zwang)
+    private var systemThemeCard: some View {
+        let isOn = settings.themeID == ThemeSettings.systemThemeID
+        return Button { select(ThemeSettings.systemThemeID) } label: {
+            HStack(spacing: 12) {
+                // Mini-Vorschau: helle | dunkle Hälfte (Bücherei ↔ Kakao).
+                HStack(spacing: 0) {
+                    Rectangle().fill(KKTheme.storybook.backgroundColors.first ?? .clear)
+                    Rectangle().fill(KKTheme.kakao.backgroundColors.first ?? .clear)
+                }
+                .frame(width: 46, height: 46)
+                .clipShape(RoundedRectangle(cornerRadius: settings.cardInnerRadius))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Automatisch")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
+                    Text("Folgt Hell/Dunkel des Systems")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isOn ? settings.theme.accent : .secondary)
+            }
+            .padding(12)
+            .background(Color(.secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: settings.cardCornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: settings.cardCornerRadius)
+                    .stroke(isOn ? settings.theme.accent : .clear, lineWidth: 3)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
     }
 
     // MARK: App-Erscheinung (System/Hell/Dunkel, getrennt von den Kartenfarben)

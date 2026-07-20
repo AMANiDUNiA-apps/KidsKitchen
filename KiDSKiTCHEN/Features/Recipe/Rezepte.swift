@@ -255,7 +255,7 @@ struct Rezepte: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(ThemeSettings.shared.theme.backgroundColors.first ?? .clear, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
         .task {
             if saveState != .saving {
                 saveState = SavedRecipeRepository.shared.isSaved(recipe.name) ? .saved : .idle

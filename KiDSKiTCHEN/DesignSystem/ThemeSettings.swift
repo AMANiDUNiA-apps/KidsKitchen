@@ -76,6 +76,20 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 final class ThemeSettings {
     static let shared = ThemeSettings()
 
+    /// Sentinel-`themeID`: Farbstyle folgt dem System-Hell/Dunkel (opt-in, Jay
+    /// 20.7. „ermöglichen, nicht erzwingen"). NICHT der Default — der bleibt
+    /// `storybook`. Kollidiert nicht mit eingebauten IDs oder `custom-<UUID>`.
+    static let systemThemeID = "system"
+
+    /// Hell-/Dunkel-Paar für den System-Modus (beide warm: Bücherei ↔ Kakao).
+    private static let systemLightTheme = KKTheme.storybook
+    private static let systemDarkTheme  = KKTheme.kakao
+
+    /// Effektives System-colorScheme, vom App-Root gespiegelt (`\.colorScheme`
+    /// UNTER `preferredColorScheme` — respektiert also auch eine erzwungene
+    /// Hell/Dunkel-Erscheinung). Laufzeit-Zustand, NICHT persistiert.
+    var systemIsDark = false
+
     private let repo: ThemeRepository
 
     /// Backing für `themeID` — beim Lösch-Fallback direkt gesetzt, damit die
@@ -119,6 +133,9 @@ final class ThemeSettings {
     /// den Store nicht). Invariante: liefert IMMER ein gültiges Theme; Decode-
     /// Fehler, gelöschte ID oder ID-Kollision brechen das nie.
     var theme: KKTheme {
+        if themeID == Self.systemThemeID {
+            return systemIsDark ? Self.systemDarkTheme : Self.systemLightTheme
+        }
         if let builtIn = KKTheme.all.first(where: { $0.id == themeID }) { return builtIn }
         if let custom = customThemes.first(where: { $0.id == themeID }) { return custom.asKKTheme() }
         return .storybook
