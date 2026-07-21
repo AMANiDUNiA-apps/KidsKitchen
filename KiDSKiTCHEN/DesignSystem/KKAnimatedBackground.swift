@@ -50,6 +50,12 @@ struct KKAnimatedBackground: View {
         // der TimelineView/MeshGradient-Verbund nicht → explizit maximale Fläche fordern.
         // (Weiße-Balken-Fix, von main d9e23ad geliftet, Rebuild P4.)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Opake Theme-Grundfarbe HINTER dem Mesh: die inneren Akzent-/Sekundär-
+        // Punkte tragen Alpha (0,20 / 0,15) — ohne opake Basis komponieren sie bei
+        // hellem Theme + System-Dunkelmodus gegen das schwarze Fenster → dunkle,
+        // fotoartige Flecken (Jays „hässlicher Bug", Sim-Dark 21.7.). Mit Basis
+        // mischen die transluzenten Wirbel wie gedacht auf der Creme-Fläche.
+        .background(theme.backgroundColors.first ?? Color.clear)
     }
 
     /// 64 Farben (8×8, zeilenweise).
